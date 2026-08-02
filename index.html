@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh</title>
+  <title>Zema R - Quản Lý Hình Ảnh (Cloud Sync)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,27 +16,25 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
+  <!-- Firebase SDK (Version Compat cho 1 File HTML) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
   <style>
     * {
       -webkit-tap-highlight-color: transparent !important;
       -webkit-touch-callout: none !important;
       -webkit-user-select: none !important;
-      -khtml-user-select: none !important;
-      -moz-user-select: none !important;
-      -ms-user-select: none !important;
       user-select: none !important;
       box-sizing: border-box;
     }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: #0f172a;
       color: #f8fafc;
       overflow-x: hidden;
     }
-    img {
-      -webkit-user-drag: none;
-      pointer-events: none;
-    }
+    img { pointer-events: none; }
     .calendar-day {
       aspect-ratio: 1;
       display: flex;
@@ -78,22 +76,24 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between pb-10">
 
-  <!-- Màn hình chờ khi đang phân loại / khôi phục ảnh -->
+  <!-- Màn hình Loading khi Đang Phân Loại / Đồng Bộ Cloud -->
   <div id="ocrLoadingModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 p-5 rounded-2xl flex flex-col items-center gap-3 text-center shadow-2xl max-w-xs w-full">
       <div class="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-      <p id="ocrLoadingText" class="font-bold text-pink-400 text-xs">Đang lọc tự động Hóa Đơn / Phiếu Sửa...</p>
+      <p id="ocrLoadingText" class="font-bold text-pink-400 text-xs">Đang đồng bộ dữ liệu Cloud...</p>
     </div>
   </div>
 
-  <!-- Header chọn Chi Nhánh (To phóng lớn) -->
+  <!-- Header chọn Chi Nhánh (To Phóng Lớn) -->
   <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-4 shadow-xl">
     <div class="max-w-md mx-auto flex items-center justify-between gap-3">
       <div class="flex items-center gap-3">
         <div class="zema-logo w-12 h-12 text-2xl italic transform -skew-x-6">Z</div>
         <div>
           <h1 class="text-2xl font-black tracking-wider text-pink-500 leading-none">ZEMA R</h1>
-          <span class="text-xs text-slate-400 font-bold tracking-wide">Quản Lý Ảnh</span>
+          <span class="text-xs text-slate-400 font-bold tracking-wide flex items-center gap-1">
+            Quản Lý Ảnh <span id="cloudStatus" class="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="Đã nối Cloud"></span>
+          </span>
         </div>
       </div>
 
@@ -110,7 +110,7 @@
   <!-- Container Chính -->
   <main class="max-w-md mx-auto w-full flex-1 px-4 py-3 space-y-3">
 
-    <!-- Lịch chọn ngày (Thu gọn) -->
+    <!-- Lịch chọn ngày -->
     <section class="bg-slate-900/80 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
       <button onclick="toggleCalendar()" class="w-full flex justify-between items-center p-3 bg-slate-900 hover:bg-slate-800/80 transition-colors">
         <div class="flex items-center gap-2">
@@ -138,10 +138,9 @@
       </div>
     </section>
 
-    <!-- Thư mục & Nút Chụp / Khôi phục -->
+    <!-- Thư mục & Nút Chụp -->
     <section class="space-y-3">
       <div class="flex items-center justify-between gap-1.5">
-        <!-- Thanh Tab Danh Mục -->
         <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800 flex-1 overflow-x-auto gap-1">
           <button onclick="switchFolder('tat_ca')" id="tab-tat_ca" class="flex-1 min-w-[50px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-pink-400 bg-slate-800">
             Tất Cả <span id="count-tat_ca" class="text-[9px] opacity-75">(0)</span>
@@ -157,19 +156,13 @@
           </button>
         </div>
 
-        <!-- Nút Chụp & Nút Nhập Album -->
         <div class="flex items-center gap-1 shrink-0">
-          <button onclick="triggerCameraInput()" class="bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold px-2.5 py-2.5 rounded-xl shadow-lg flex items-center gap-1 text-xs active:scale-95 transition-transform">
+          <button onclick="triggerCameraInput()" class="bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold px-3.5 py-2.5 rounded-xl shadow-lg flex items-center gap-1.5 text-xs active:scale-95 transition-transform">
             <i data-lucide="camera" class="w-4 h-4"></i> Chụp
-          </button>
-          <button onclick="triggerAlbumInput()" class="bg-slate-800 hover:bg-slate-700 text-pink-400 border border-pink-500/30 font-bold px-2.5 py-2.5 rounded-xl shadow-lg flex items-center gap-1 text-xs active:scale-95 transition-transform">
-            <i data-lucide="folder-input" class="w-4 h-4"></i> Nhập
           </button>
         </div>
 
-        <!-- Input ẩn -->
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageCapture(event)">
-        <input type="file" id="albumInput" accept="image/*" multiple class="hidden" onchange="handleAlbumImport(event)">
       </div>
 
       <!-- Thanh chọn nhiều ảnh -->
@@ -200,18 +193,12 @@
     <section>
       <div id="imageGrid" class="grid grid-cols-2 gap-3"></div>
       <div id="emptyState" class="hidden text-center py-12 text-slate-500 space-y-2">
-        <i data-lucide="image-off" class="w-10 h-10 mx-auto text-slate-600"></i>
-        <p class="text-xs font-medium">Không có ảnh nào thuộc mục này</p>
+        <i data-lucide="cloud-off" class="w-10 h-10 mx-auto text-slate-600"></i>
+        <p class="text-xs font-medium">Chưa có ảnh nào trên Cloud cho mục này</p>
       </div>
     </section>
 
   </main>
-
-  <!-- Footer Copyright -->
-  <footer class="mt-8 text-center text-[11px] text-slate-500 py-3 border-t border-slate-900">
-    <p class="font-medium text-slate-400">© Copyright Nguyễn Hữu Phúc</p>
-    <p class="text-[10px] text-slate-500 mt-0.5">Tel: 0908893082</p>
-  </footer>
 
   <!-- Viewer Ảnh Phóng To -->
   <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4">
@@ -230,25 +217,32 @@
     </div>
 
     <div class="flex justify-around items-center bg-slate-900/90 backdrop-blur-md rounded-2xl py-3 border border-slate-800">
-      <button onclick="zoomModalImage(0.25)" class="flex flex-col items-center text-slate-300 text-xs gap-1">
-        <i data-lucide="zoom-in" class="w-5 h-5 text-pink-400"></i> Phóng
-      </button>
-      <button onclick="zoomModalImage(-0.25)" class="flex flex-col items-center text-slate-300 text-xs gap-1">
-        <i data-lucide="zoom-out" class="w-5 h-5 text-pink-400"></i> Thu nhỏ
-      </button>
-      <button onclick="saveSingleToPhotos()" class="flex flex-col items-center text-emerald-400 text-xs gap-1">
-        <i data-lucide="download" class="w-5 h-5 text-emerald-400"></i> Lưu về máy
-      </button>
-      <button onclick="shareSingleImage()" class="flex flex-col items-center text-pink-400 text-xs gap-1">
-        <i data-lucide="share-2" class="w-5 h-5 text-pink-400"></i> Chia sẻ
-      </button>
-      <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1">
-        <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa
-      </button>
+      <button onclick="zoomModalImage(0.25)" class="flex flex-col items-center text-slate-300 text-xs gap-1"><i data-lucide="zoom-in" class="w-5 h-5 text-pink-400"></i> Phóng</button>
+      <button onclick="zoomModalImage(-0.25)" class="flex flex-col items-center text-slate-300 text-xs gap-1"><i data-lucide="zoom-out" class="w-5 h-5 text-pink-400"></i> Thu nhỏ</button>
+      <button onclick="saveSingleToPhotos()" class="flex flex-col items-center text-emerald-400 text-xs gap-1"><i data-lucide="download" class="w-5 h-5 text-emerald-400"></i> Lưu về máy</button>
+      <button onclick="shareSingleImage()" class="flex flex-col items-center text-pink-400 text-xs gap-1"><i data-lucide="share-2" class="w-5 h-5 text-pink-400"></i> Chia sẻ</button>
+      <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1"><i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa</button>
     </div>
   </div>
 
   <script>
+    // ==========================================
+    // 💥 DÁN MÃ FIREBASE CONFIG CỦA ÔNG VÀO ĐÂY 💥
+    // ==========================================
+    const firebaseConfig = {
+      apiKey: "AIzaSyATkvZNedy1vDx-yupT0IFUrImit-jTYkk",
+      authDomain: "zemar-2b24e.firebaseapp.com",
+      projectId: "zemar-2b24e",
+      storageBucket: "zemar-2b24e.firebasestorage.app",
+      messagingSenderId: "901360040870",
+      appId: "1:901360040870:web:485de54f94d60a81526d67",
+      measurementId: "G-6F6EM849R8"
+    };
+
+    // Khởi tạo Firebase Cloud
+    firebase.initializeApp(firebaseConfig);
+    const firestore = firebase.firestore();
+
     const ADMIN_PASS = "0000";
     const DEFAULT_BRANCHES = [
       "CN 190 3/2", "CN 352 Trường Chinh", "CN 101 Bùi Thị Xuân",
@@ -262,9 +256,7 @@
     let calendarMonth = new Date().getMonth();
     let calendarYear = new Date().getFullYear();
     let currentFolder = "tat_ca";
-    let db = null;
     let ocrWorker = null;
-    let currentRenderId = 0;
 
     let isCalendarOpen = false;
     let currentFolderPhotosCache = [];
@@ -275,11 +267,9 @@
 
     window.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
-      await initIndexedDB();
       initBranches();
-      await autoSelectLatestDate();
       await renderCalendar();
-      loadImagesForCurrentView();
+      listenToCloudPhotos();
       initOCRWorker();
     });
 
@@ -288,33 +278,7 @@
         if (typeof Tesseract !== 'undefined') {
           ocrWorker = await Tesseract.createWorker('vie');
         }
-      } catch (e) {
-        console.log("OCR Error:", e);
-      }
-    }
-
-    function initIndexedDB() {
-      return new Promise((resolve) => {
-        const request = indexedDB.open("ZemaR_AutoFilterDB_v15", 15);
-        request.onupgradeneeded = (e) => {
-          db = e.target.result;
-          if (!db.objectStoreNames.contains("photos")) {
-            const store = db.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
-            store.createIndex("branch", "branch", { unique: false });
-            store.createIndex("date", "date", { unique: false });
-            store.createIndex("branch_date", ["branch", "date"], { unique: false });
-          } else {
-            const store = e.target.transaction.objectStore("photos");
-            if (!store.indexNames.contains("branch_date")) {
-              store.createIndex("branch_date", ["branch", "date"], { unique: false });
-            }
-          }
-        };
-        request.onsuccess = (e) => {
-          db = e.target.result;
-          resolve();
-        };
-      });
+      } catch (e) { console.log("OCR Error:", e); }
     }
 
     function initBranches() {
@@ -329,31 +293,24 @@
       select.innerHTML = branches.map(b => `<option value="${b}" ${b === currentBranch ? 'selected' : ''}>${b}</option>`).join('');
     }
 
-    async function onBranchChange() {
+    function onBranchChange() {
       currentBranch = document.getElementById('branchSelect').value;
       localStorage.setItem('zema_current_branch', currentBranch);
       exitBatchMode();
-      await autoSelectLatestDate();
       renderCalendar();
-      loadImagesForCurrentView();
+      listenToCloudPhotos();
     }
 
     function promptAdminBranch() {
       const pass = prompt("Nhập mật khẩu xác nhận (Mặc định: 0000):");
-      if (pass !== ADMIN_PASS) {
-        alert("Mật khẩu không chính xác!");
-        return;
-      }
+      if (pass !== ADMIN_PASS) { alert("Mật khẩu không chính xác!"); return; }
 
       const action = prompt("1. Thêm Chi Nhánh Mới\n2. Đổi Tên Chi Nhánh Hiện Tại", "1");
       let branches = JSON.parse(localStorage.getItem('zema_branches')) || DEFAULT_BRANCHES;
 
       if (action === "1") {
         const newName = prompt("Nhập tên chi nhánh mới:");
-        if (newName && newName.trim()) {
-          branches.push(newName.trim());
-          currentBranch = newName.trim();
-        }
+        if (newName && newName.trim()) { branches.push(newName.trim()); currentBranch = newName.trim(); }
       } else if (action === "2") {
         const newName = prompt("Nhập tên mới cho [" + currentBranch + "]:");
         if (newName && newName.trim()) {
@@ -365,53 +322,19 @@
       localStorage.setItem('zema_branches', JSON.stringify(branches));
       localStorage.setItem('zema_current_branch', currentBranch);
       renderBranchDropdown(branches);
-      autoSelectLatestDate().then(() => {
-        renderCalendar();
-        loadImagesForCurrentView();
-      });
-    }
-
-    function autoSelectLatestDate() {
-      return new Promise((resolve) => {
-        const transaction = db.transaction(["photos"], "readonly");
-        const store = transaction.objectStore("photos");
-        const index = store.index("branch");
-        let latestDate = null;
-
-        index.openCursor(IDBKeyRange.only(currentBranch), "prev").onsuccess = (e) => {
-          const cursor = e.target.result;
-          if (cursor) {
-            latestDate = cursor.value.date;
-          }
-          if (latestDate) {
-            selectedDate = latestDate;
-            const [y, m] = latestDate.split('-').map(Number);
-            calendarYear = y;
-            calendarMonth = m - 1;
-          } else {
-            selectedDate = new Date().toISOString().split('T')[0];
-          }
-          resolve();
-        };
-      });
+      renderCalendar();
+      listenToCloudPhotos();
     }
 
     function toggleCalendar() {
       isCalendarOpen = !isCalendarOpen;
-      const calendarBody = document.getElementById('calendarBody');
-      const chevron = document.getElementById('calendarChevron');
-      if (isCalendarOpen) {
-        calendarBody.classList.remove('hidden');
-        chevron.classList.add('rotate-180');
-      } else {
-        calendarBody.classList.add('hidden');
-        chevron.classList.remove('rotate-180');
-      }
+      document.getElementById('calendarBody').classList.toggle('hidden', !isCalendarOpen);
+      document.getElementById('calendarChevron').classList.toggle('rotate-180', isCalendarOpen);
     }
 
     async function renderCalendar() {
-      const monthYearElem = document.getElementById('calendarMonthYear');
       const titleElem = document.getElementById('calendarSelectedTitle');
+      const monthYearElem = document.getElementById('calendarMonthYear');
       const daysContainer = document.getElementById('calendarDays');
       const monthNames = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
 
@@ -419,7 +342,16 @@
       titleElem.innerText = `Ngày ${sD}/${sM}/${sY}`;
       monthYearElem.innerText = `${monthNames[calendarMonth]} / ${calendarYear}`;
 
-      const datesWithPhotos = await getDatesWithPhotosForBranch(currentBranch, calendarYear, calendarMonth);
+      const datesWithPhotos = new Set();
+      const snapshot = await firestore.collection("photos")
+        .where("branch", "==", currentBranch)
+        .get();
+
+      snapshot.forEach(doc => {
+        const d = doc.data().date;
+        if (d) datesWithPhotos.add(d);
+      });
+
       const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
       const totalDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
 
@@ -438,7 +370,7 @@
           e.stopPropagation();
           selectedDate = dateStr;
           renderCalendar();
-          loadImagesForCurrentView();
+          listenToCloudPhotos();
         };
         daysContainer.appendChild(dayElem);
       }
@@ -449,25 +381,6 @@
       if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
       if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
       renderCalendar();
-    }
-
-    function getDatesWithPhotosForBranch(branch, year, month) {
-      return new Promise((resolve) => {
-        const transaction = db.transaction(["photos"], "readonly");
-        const store = transaction.objectStore("photos");
-        const index = store.index("branch");
-        const dates = new Set();
-
-        index.openCursor(IDBKeyRange.only(branch)).onsuccess = (e) => {
-          const cursor = e.target.result;
-          if (cursor) {
-            const item = cursor.value;
-            const [y, m] = item.date.split('-').map(Number);
-            if (y === year && m === (month + 1)) dates.add(item.date);
-            cursor.continue();
-          } else { resolve(dates); }
-        };
-      });
     }
 
     function switchFolder(folder) {
@@ -481,129 +394,74 @@
         }
       });
       exitBatchMode();
-      loadImagesForCurrentView();
+      listenToCloudPhotos();
     }
 
-    async function loadImagesForCurrentView() {
-      const renderId = ++currentRenderId;
+    function listenToCloudPhotos() {
       const grid = document.getElementById('imageGrid');
       const emptyState = document.getElementById('emptyState');
 
-      const allPhotosForBranchAndDay = await getPhotosByBranchAndDate(currentBranch, selectedDate);
+      firestore.collection("photos")
+        .where("branch", "==", currentBranch)
+        .where("date", "==", selectedDate)
+        .onSnapshot((snapshot) => {
+          const allPhotos = [];
+          snapshot.forEach(doc => {
+            allPhotos.push({ id: doc.id, ...doc.data() });
+          });
 
-      if (renderId !== currentRenderId) return;
+          document.getElementById('count-tat_ca').innerText = `(${allPhotos.length})`;
+          document.getElementById('count-may').innerText = `(${allPhotos.filter(p => p.folder === 'may').length})`;
+          document.getElementById('count-phieu_sua').innerText = `(${allPhotos.filter(p => p.folder === 'phieu_sua').length})`;
+          document.getElementById('count-hoa_don').innerText = `(${allPhotos.filter(p => p.folder === 'hoa_don').length})`;
 
-      grid.innerHTML = "";
+          if (currentFolder === 'tat_ca') {
+            currentFolderPhotosCache = allPhotos;
+          } else {
+            currentFolderPhotosCache = allPhotos.filter(p => p.folder === currentFolder);
+          }
 
-      document.getElementById('count-tat_ca').innerText = `(${allPhotosForBranchAndDay.length})`;
-      document.getElementById('count-may').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'may').length})`;
-      document.getElementById('count-phieu_sua').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'phieu_sua').length})`;
-      document.getElementById('count-hoa_don').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'hoa_don').length})`;
-
-      if (currentFolder === 'tat_ca') {
-        currentFolderPhotosCache = allPhotosForBranchAndDay;
-      } else {
-        currentFolderPhotosCache = allPhotosForBranchAndDay.filter(p => p.folder === currentFolder);
-      }
-
-      if (currentFolderPhotosCache.length === 0) {
-        emptyState.classList.remove('hidden');
-        return;
-      }
-      emptyState.classList.add('hidden');
-
-      currentFolderPhotosCache.forEach(photo => {
-        const card = document.createElement('div');
-        card.className = "relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg cursor-pointer select-none";
-
-        const imgContainer = document.createElement('div');
-        imgContainer.className = "relative aspect-square bg-slate-950";
-
-        const img = document.createElement('img');
-        img.src = photo.dataUrl;
-        img.className = "w-full h-full object-cover pointer-events-none";
-
-        const checkOverlay = document.createElement('div');
-        checkOverlay.className = `absolute top-2 right-2 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${selectedImageIds.has(photo.id) ? 'bg-pink-500 border-pink-500' : 'bg-black/40'}`;
-        if (selectedImageIds.has(photo.id)) checkOverlay.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-white"></i>`;
-
-        imgContainer.appendChild(img);
-        imgContainer.appendChild(checkOverlay);
-        card.appendChild(imgContainer);
-
-        let pressTimer = null;
-        let isLongPress = false;
-
-        const startPress = () => {
-          isLongPress = false;
-          pressTimer = setTimeout(() => {
-            isLongPress = true;
-            toggleBatchSelect(photo.id);
-          }, 350);
-        };
-
-        const cancelPress = () => clearTimeout(pressTimer);
-
-        card.addEventListener('touchstart', startPress, { passive: true });
-        card.addEventListener('touchend', cancelPress);
-        card.addEventListener('mousedown', startPress);
-        card.addEventListener('mouseup', cancelPress);
-
-        card.onclick = (e) => {
-          e.preventDefault();
-          if (isLongPress) {
-            isLongPress = false;
+          grid.innerHTML = "";
+          if (currentFolderPhotosCache.length === 0) {
+            emptyState.classList.remove('hidden');
             return;
           }
-          if (isBatchMode) {
-            toggleBatchSelect(photo.id);
-          } else {
-            openSingleImageModal(photo);
-          }
-        };
+          emptyState.classList.add('hidden');
 
-        grid.appendChild(card);
-      });
-      lucide.createIcons();
+          currentFolderPhotosCache.forEach(photo => {
+            const card = document.createElement('div');
+            card.className = "relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg cursor-pointer select-none";
+
+            const imgContainer = document.createElement('div');
+            imgContainer.className = "relative aspect-square bg-slate-950";
+
+            const img = document.createElement('img');
+            img.src = photo.dataUrl;
+            img.className = "w-full h-full object-cover pointer-events-none";
+
+            const checkOverlay = document.createElement('div');
+            checkOverlay.className = `absolute top-2 right-2 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${selectedImageIds.has(photo.id) ? 'bg-pink-500 border-pink-500' : 'bg-black/40'}`;
+            if (selectedImageIds.has(photo.id)) checkOverlay.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-white"></i>`;
+
+            imgContainer.appendChild(img);
+            imgContainer.appendChild(checkOverlay);
+            card.appendChild(imgContainer);
+
+            card.onclick = () => {
+              if (isBatchMode) toggleBatchSelect(photo.id);
+              else openSingleImageModal(photo);
+            };
+
+            grid.appendChild(card);
+          });
+          lucide.createIcons();
+        });
     }
 
-    function getPhotosByBranchAndDate(branch, dateStr) {
-      return new Promise((resolve) => {
-        const transaction = db.transaction(["photos"], "readonly");
-        const store = transaction.objectStore("photos");
-
-        if (store.indexNames.contains("branch_date")) {
-          const index = store.index("branch_date");
-          const request = index.getAll(IDBKeyRange.only([branch, dateStr]));
-          request.onsuccess = (e) => resolve(e.target.result || []);
-        } else {
-          const result = [];
-          store.openCursor().onsuccess = (e) => {
-            const cursor = e.target.result;
-            if (cursor) {
-              if (cursor.value.branch === branch && cursor.value.date === dateStr) {
-                result.push(cursor.value);
-              }
-              cursor.continue();
-            } else resolve(result);
-          };
-        }
-      });
-    }
-
-    function triggerCameraInput() {
-      document.getElementById('cameraInput').click();
-    }
-
-    function triggerAlbumInput() {
-      document.getElementById('albumInput').click();
-    }
+    function triggerCameraInput() { document.getElementById('cameraInput').click(); }
 
     function removeVietnameseTones(str) {
-      return str.normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/đ/g, 'd').replace(/Đ/g, 'D')
-        .toUpperCase();
+      return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toUpperCase();
     }
 
     function cropTopHeaderForOCR(dataUrl, maxWidth) {
@@ -626,34 +484,14 @@
     async function autoDetectFolderWithOCR(dataUrl) {
       try {
         const croppedHeaderUrl = await cropTopHeaderForOCR(dataUrl, 500);
-
-        if (!ocrWorker) {
-          ocrWorker = await Tesseract.createWorker('vie');
-        }
-
+        if (!ocrWorker) ocrWorker = await Tesseract.createWorker('vie');
         const ret = await ocrWorker.recognize(croppedHeaderUrl);
-        const rawText = ret.data.text || "";
-        const cleanText = removeVietnameseTones(rawText);
+        const cleanText = removeVietnameseTones(ret.data.text || "");
 
-        const isHoaDon = cleanText.includes("HOA DON") ||
-                         cleanText.includes("BAN LE") ||
-                         cleanText.includes("THANH TIEN") ||
-                         cleanText.includes("DON VI") ||
-                         cleanText.includes("CONG:");
-
-        const isPhieuSua = cleanText.includes("PHIEU") ||
-                           cleanText.includes("SUA CHUA") ||
-                           cleanText.includes("ZEMA") ||
-                           cleanText.includes("DE XUAT") ||
-                           cleanText.includes("TAI SAN");
-
-        if (isHoaDon) return "hoa_don";
-        else if (isPhieuSua) return "phieu_sua";
-        else return "may";
-      } catch (err) {
-        console.error("Lỗi OCR:", err);
+        if (cleanText.includes("HOA DON") || cleanText.includes("BAN LE") || cleanText.includes("THANH TIEN")) return "hoa_don";
+        if (cleanText.includes("PHIEU") || cleanText.includes("SUA CHUA") || cleanText.includes("DE XUAT")) return "phieu_sua";
         return "may";
-      }
+      } catch (err) { return "may"; }
     }
 
     async function handleImageCapture(event) {
@@ -661,12 +499,11 @@
       if (!file) return;
 
       const captureBranch = currentBranch;
-      const reader = new FileReader();
-
       const loadingModal = document.getElementById('ocrLoadingModal');
-      document.getElementById('ocrLoadingText').innerText = "Đang lọc tự động Hóa Đơn / Phiếu Sửa...";
+      document.getElementById('ocrLoadingText').innerText = "Đang đẩy ảnh lên Cloud Google...";
       loadingModal.classList.remove('hidden');
 
+      const reader = new FileReader();
       reader.onload = async (e) => {
         const rawDataUrl = e.target.result;
         const now = new Date();
@@ -676,80 +513,23 @@
         const detectedFolder = await autoDetectFolderWithOCR(rawDataUrl);
         const stampedDataUrl = await addWatermarkToImage(rawDataUrl, captureBranch, dateFormatted);
 
-        const photoObj = {
+        await firestore.collection("photos").add({
           branch: captureBranch,
           date: dateKey,
           folder: detectedFolder,
           capturedDate: dateFormatted,
-          dataUrl: stampedDataUrl
-        };
+          dataUrl: stampedDataUrl,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
 
-        const tx = db.transaction(["photos"], "readwrite");
-        tx.objectStore("photos").add(photoObj);
-        tx.oncomplete = () => {
-          loadingModal.classList.add('hidden');
-          selectedDate = dateKey;
-          switchFolder(detectedFolder);
-          renderCalendar();
-        };
+        loadingModal.classList.add('hidden');
+        selectedDate = dateKey;
+        switchFolder(detectedFolder);
+        renderCalendar();
       };
 
       reader.readAsDataURL(file);
       event.target.value = "";
-    }
-
-    // XỬ LÝ KHÔI PHỤC / NHẬP NHIỀU ẢNH TỪ ALBUM MÁY
-    async function handleAlbumImport(event) {
-      const files = Array.from(event.target.files || []);
-      if (files.length === 0) return;
-
-      const loadingModal = document.getElementById('ocrLoadingModal');
-      const loadingText = document.getElementById('ocrLoadingText');
-      loadingModal.classList.remove('hidden');
-
-      let importedCount = 0;
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        loadingText.innerText = `Đang khôi phục ảnh (${i + 1}/${files.length})...`;
-
-        await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onload = async (e) => {
-            const rawDataUrl = e.target.result;
-
-            // Tự lấy ngày khởi tạo của file trong album
-            const fileDate = new Date(file.lastModified || Date.now());
-            const dateFormatted = `${String(fileDate.getDate()).padStart(2, '0')}/${String(fileDate.getMonth() + 1).padStart(2, '0')}/${fileDate.getFullYear()}`;
-            const dateKey = fileDate.toISOString().split('T')[0];
-
-            // Quét OCR phân loại thư mục
-            const detectedFolder = await autoDetectFolderWithOCR(rawDataUrl);
-
-            const photoObj = {
-              branch: currentBranch,
-              date: dateKey,
-              folder: detectedFolder,
-              capturedDate: dateFormatted,
-              dataUrl: rawDataUrl // Giữ nguyên ảnh gốc
-            };
-
-            const tx = db.transaction(["photos"], "readwrite");
-            tx.objectStore("photos").add(photoObj);
-            tx.oncomplete = () => {
-              importedCount++;
-              resolve();
-            };
-          };
-          reader.readAsDataURL(file);
-        });
-      }
-
-      loadingModal.classList.add('hidden');
-      event.target.value = "";
-      alert(`Đã khôi phục thành công ${importedCount} ảnh vào [${currentBranch}]!`);
-      renderCalendar();
-      loadImagesForCurrentView();
     }
 
     function addWatermarkToImage(dataUrl, branchName, dateStr) {
@@ -760,7 +540,6 @@
           canvas.width = img.width;
           canvas.height = img.height;
           const ctx = canvas.getContext('2d');
-
           ctx.drawImage(img, 0, 0);
 
           const barHeight = Math.max(60, Math.round(img.height * 0.1));
@@ -787,7 +566,7 @@
           ctx.font = `italic ${fontSizeSub}px -apple-system, BlinkMacSystemFont, Arial`;
           ctx.fillText('@ Nguyễn Hữu Phúc', marginX + dateWidth, img.height - (fontSizeSub * 0.8));
 
-          resolve(canvas.toDataURL('image/jpeg', 0.92));
+          resolve(canvas.toDataURL('image/jpeg', 0.85));
         };
         img.src = dataUrl;
       });
@@ -813,83 +592,15 @@
 
     async function changeImageFolder(newFolder) {
       if (!activeModalImgId) return;
-      const tx = db.transaction(["photos"], "readwrite");
-      const store = tx.objectStore("photos");
-      const req = store.get(activeModalImgId);
-      req.onsuccess = () => {
-        const data = req.result;
-        if (data) {
-          data.folder = newFolder;
-          store.put(data);
-        }
-      };
-      tx.oncomplete = () => {
-        closeModal();
-        loadImagesForCurrentView();
-      };
-    }
-
-    function dataURLtoFile(dataurl, filename) {
-      const arr = dataurl.split(',');
-      const mime = arr[0].match(/:(.*?);/)[1];
-      const bstr = atob(arr[1]);
-      let n = bstr.length;
-      const u8arr = new Uint8Array(n);
-      while (n--) {
-        u8arr[n] = bstr.charCodeAt(n);
-      }
-      return new File([u8arr], filename, { type: mime });
-    }
-
-    async function saveSingleToPhotos() {
-      if (!activeModalImgId) return;
-      const tx = db.transaction(["photos"], "readonly");
-      const req = tx.objectStore("photos").get(activeModalImgId);
-      req.onsuccess = async () => {
-        const photo = req.result;
-        if (photo) {
-          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
-          const file = dataURLtoFile(photo.dataUrl, filename);
-
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try { await navigator.share({ files: [file] }); } catch (e) {}
-          } else {
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(file);
-            a.download = filename;
-            a.click();
-          }
-        }
-      };
-    }
-
-    async function shareSingleImage() {
-      if (!activeModalImgId) return;
-      const tx = db.transaction(["photos"], "readonly");
-      const req = tx.objectStore("photos").get(activeModalImgId);
-      req.onsuccess = async () => {
-        const photo = req.result;
-        if (photo) {
-          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
-          const file = dataURLtoFile(photo.dataUrl, filename);
-          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-            try { await navigator.share({ title: photo.branch, files: [file] }); } catch (e) {}
-          } else {
-            alert("Trình duyệt không hỗ trợ nút Chia Sẻ trực tiếp.");
-          }
-        }
-      };
+      await firestore.collection("photos").doc(activeModalImgId).update({ folder: newFolder });
+      closeModal();
     }
 
     async function deleteSingleImage() {
-      if (!confirm("Xác nhận xóa hình ảnh này?")) return;
-      const tx = db.transaction(["photos"], "readwrite");
-      tx.objectStore("photos").delete(activeModalImgId);
-      tx.oncomplete = () => {
-        closeModal();
-        renderCalendar();
-        loadImagesForCurrentView();
-      };
+      if (!confirm("Xóa vĩnh viễn hình ảnh này trên Cloud?")) return;
+      await firestore.collection("photos").doc(activeModalImgId).delete();
+      closeModal();
+      renderCalendar();
     }
 
     function toggleBatchSelect(id) {
@@ -897,19 +608,16 @@
       if (selectedImageIds.has(id)) selectedImageIds.delete(id);
       else selectedImageIds.add(id);
 
-      if (selectedImageIds.size === 0) {
-        exitBatchMode();
-      } else {
+      if (selectedImageIds.size === 0) exitBatchMode();
+      else {
         document.getElementById('batchBar').classList.remove('hidden');
         document.getElementById('batchCount').innerText = selectedImageIds.size;
-        updateSelectAllButtonText();
-        loadImagesForCurrentView();
+        listenToCloudPhotos();
       }
     }
 
     function toggleSelectAll() {
-      if (!currentFolderPhotosCache || currentFolderPhotosCache.length === 0) return;
-
+      if (!currentFolderPhotosCache) return;
       if (selectedImageIds.size === currentFolderPhotosCache.length) {
         selectedImageIds.clear();
         exitBatchMode();
@@ -918,17 +626,7 @@
         currentFolderPhotosCache.forEach(p => selectedImageIds.add(p.id));
         document.getElementById('batchBar').classList.remove('hidden');
         document.getElementById('batchCount').innerText = selectedImageIds.size;
-        updateSelectAllButtonText();
-        loadImagesForCurrentView();
-      }
-    }
-
-    function updateSelectAllButtonText() {
-      const btnText = document.getElementById('btnSelectAllText');
-      if (currentFolderPhotosCache && selectedImageIds.size === currentFolderPhotosCache.length) {
-        btnText.innerText = "Bỏ Chọn Tất Cả";
-      } else {
-        btnText.innerText = "Chọn Tất Cả";
+        listenToCloudPhotos();
       }
     }
 
@@ -936,82 +634,16 @@
       isBatchMode = false;
       selectedImageIds.clear();
       document.getElementById('batchBar').classList.add('hidden');
-      loadImagesForCurrentView();
-    }
-
-    async function batchSaveToPhotos() {
-      if (selectedImageIds.size === 0) return;
-      const filesArr = [];
-      const tx = db.transaction(["photos"], "readonly");
-      const store = tx.objectStore("photos");
-
-      for (let id of selectedImageIds) {
-        const photo = await new Promise(res => { store.get(id).onsuccess = e => res(e.target.result); });
-        if (photo && photo.dataUrl) {
-          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
-          filesArr.push(dataURLtoFile(photo.dataUrl, filename));
-        }
-      }
-
-      if (filesArr.length === 0) return;
-
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: filesArr })) {
-        try {
-          await navigator.share({ files: filesArr });
-        } catch (e) {
-          console.log("Đã hủy lưu ảnh");
-        }
-      } else {
-        for (let i = 0; i < filesArr.length; i++) {
-          const file = filesArr[i];
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(file);
-          a.download = file.name;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          await new Promise(r => setTimeout(r, 250));
-        }
-      }
-
-      exitBatchMode();
-    }
-
-    async function batchShare() {
-      if (selectedImageIds.size === 0) return;
-      const filesArr = [];
-      const tx = db.transaction(["photos"], "readonly");
-      const store = tx.objectStore("photos");
-
-      for (let id of selectedImageIds) {
-        const photo = await new Promise(res => { store.get(id).onsuccess = e => res(e.target.result); });
-        if (photo && photo.dataUrl) {
-          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
-          filesArr.push(dataURLtoFile(photo.dataUrl, filename));
-        }
-      }
-
-      if (filesArr.length === 0) return;
-
-      if (navigator.share && navigator.canShare && navigator.canShare({ files: filesArr })) {
-        try {
-          await navigator.share({ title: 'Zema R Chia Sẻ Ảnh', files: filesArr });
-        } catch (e) {
-          console.log("Đã hủy chia sẻ");
-        }
-      } else {
-        alert("Trình duyệt không hỗ trợ tính năng chia sẻ nhiều ảnh cùng lúc.");
-      }
-
-      exitBatchMode();
+      listenToCloudPhotos();
     }
 
     async function batchDelete() {
-      if (!confirm(`Xóa ${selectedImageIds.size} ảnh đã chọn?`)) return;
-      const tx = db.transaction(["photos"], "readwrite");
-      const store = tx.objectStore("photos");
-      selectedImageIds.forEach(id => store.delete(id));
-      tx.oncomplete = () => { exitBatchMode(); renderCalendar(); };
+      if (!confirm(`Xóa vĩnh viễn ${selectedImageIds.size} ảnh đã chọn trên Cloud?`)) return;
+      for (let id of selectedImageIds) {
+        await firestore.collection("photos").doc(id).delete();
+      }
+      exitBatchMode();
+      renderCalendar();
     }
   </script>
 </body>
