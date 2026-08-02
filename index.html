@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Zema R - Quản Lý Hình Ảnh</title>
 
   <!-- PWA iOS Support -->
@@ -11,15 +11,19 @@
   <meta name="apple-mobile-web-app-title" content="Zema R">
   <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/z.png">
 
-  <!-- Tailwind CSS, Lucide Icons & Thư viện OCR Quét Chữ -->
+  <!-- Tailwind CSS & Lucide Icons -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <style>
     * {
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
+      -webkit-tap-highlight-color: transparent !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      -khtml-user-select: none !important;
+      -moz-user-select: none !important;
+      -ms-user-select: none !important;
+      user-select: none !important;
       box-sizing: border-box;
     }
     body {
@@ -27,6 +31,10 @@
       background-color: #0f172a;
       color: #f8fafc;
       overflow-x: hidden;
+    }
+    img {
+      -webkit-user-drag: none;
+      pointer-events: none; /* Khống chế tuyệt đối vệt xanh/menu copy khi nhấn giữ */
     }
     .calendar-day {
       aspect-ratio: 1;
@@ -69,14 +77,6 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between pb-10">
 
-  <!-- Màn hình chờ siêu nhanh khi đang OCR quét chữ -->
-  <div id="ocrLoadingModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 p-5 rounded-2xl flex flex-col items-center gap-3 text-center shadow-2xl max-w-xs w-full">
-      <div class="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-      <p class="font-bold text-pink-400 text-xs">Đang quét nhanh tiêu đề...</p>
-    </div>
-  </div>
-
   <!-- Header chọn Chi Nhánh -->
   <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 shadow-md">
     <div class="max-w-md mx-auto flex items-center justify-between gap-3">
@@ -101,7 +101,7 @@
   <!-- Container Chính -->
   <main class="max-w-md mx-auto w-full flex-1 px-4 py-3 space-y-3">
 
-    <!-- Lịch chọn ngày (Thu gọn gọn gàng) -->
+    <!-- Lịch chọn ngày (Thu gọn) -->
     <section class="bg-slate-900/80 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
       <button onclick="toggleCalendar()" class="w-full flex justify-between items-center p-3 bg-slate-900 hover:bg-slate-800/80 transition-colors">
         <div class="flex items-center gap-2">
@@ -150,7 +150,7 @@
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageCapture(event)">
       </div>
 
-      <!-- Thanh chọn nhiều ảnh & Thao tác Tải về / Chọn tất cả -->
+      <!-- Thanh chọn nhiều ảnh -->
       <div id="batchBar" class="hidden bg-slate-900 border border-pink-500/40 rounded-xl p-2.5 flex flex-col gap-2 shadow-lg">
         <div class="flex items-center justify-between">
           <button onclick="toggleSelectAll()" class="bg-slate-800 hover:bg-slate-700 text-pink-400 text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 border border-pink-500/30">
@@ -161,13 +161,10 @@
         </div>
 
         <div class="flex gap-2 pt-1 border-t border-slate-800">
-          <button onclick="batchDownload()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-1.5 rounded-lg font-bold flex items-center justify-center gap-1">
-            <i data-lucide="download" class="w-3.5 h-3.5"></i> Tải Về Máy
+          <button onclick="batchSaveToPhotos()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> Lưu Vào Album Máy
           </button>
-          <button onclick="batchShare()" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-xs py-1.5 rounded-lg font-bold flex items-center justify-center gap-1">
-            <i data-lucide="share-2" class="w-3.5 h-3.5"></i> Chia Sẻ
-          </button>
-          <button onclick="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center justify-center gap-1">
+          <button onclick="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-2 rounded-lg font-bold flex items-center justify-center gap-1">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Xóa
           </button>
         </div>
@@ -214,11 +211,8 @@
       <button onclick="zoomModalImage(-0.25)" class="flex flex-col items-center text-slate-300 text-xs gap-1">
         <i data-lucide="zoom-out" class="w-5 h-5 text-pink-400"></i> Thu nhỏ
       </button>
-      <button onclick="downloadSingleImage()" class="flex flex-col items-center text-emerald-400 text-xs gap-1">
-        <i data-lucide="download" class="w-5 h-5 text-emerald-400"></i> Tải về
-      </button>
-      <button onclick="shareSingleImage()" class="flex flex-col items-center text-slate-300 text-xs gap-1">
-        <i data-lucide="share-2" class="w-5 h-5 text-blue-400"></i> Chia sẻ
+      <button onclick="saveSingleToPhotos()" class="flex flex-col items-center text-emerald-400 text-xs gap-1">
+        <i data-lucide="download" class="w-5 h-5 text-emerald-400"></i> Lưu về máy
       </button>
       <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1">
         <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa
@@ -260,7 +254,7 @@
 
     function initIndexedDB() {
       return new Promise((resolve) => {
-        const request = indexedDB.open("ZemaR_AutoFilterDB_v9", 9);
+        const request = indexedDB.open("ZemaR_AutoFilterDB_v10", 10);
         request.onupgradeneeded = (e) => {
           db = e.target.result;
           if (!db.objectStoreNames.contains("photos")) {
@@ -450,7 +444,7 @@
     async function loadImagesForCurrentView() {
       const grid = document.getElementById('imageGrid');
       const emptyState = document.getElementById('emptyState');
-      grid.innerHTML = "";
+      grid.innerHTML = ""; // Xóa sạch để chống trùng 2 thumbnail
 
       const allPhotosForBranchAndDay = await getPhotosByBranchAndDate(currentBranch, selectedDate);
 
@@ -468,14 +462,14 @@
 
       currentFolderPhotosCache.forEach(photo => {
         const card = document.createElement('div');
-        card.className = "relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg cursor-pointer";
+        card.className = "relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg cursor-pointer select-none";
 
         const imgContainer = document.createElement('div');
         imgContainer.className = "relative aspect-square bg-slate-950";
 
         const img = document.createElement('img');
         img.src = photo.dataUrl;
-        img.className = "w-full h-full object-cover";
+        img.className = "w-full h-full object-cover pointer-events-none"; // Khóa sự kiện trên ảnh chống hiện menu copy
 
         const checkOverlay = document.createElement('div');
         checkOverlay.className = `absolute top-2 right-2 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${selectedImageIds.has(photo.id) ? 'bg-pink-500 border-pink-500' : 'bg-black/40'}`;
@@ -493,7 +487,7 @@
           pressTimer = setTimeout(() => {
             isLongPress = true;
             toggleBatchSelect(photo.id);
-          }, 400);
+          }, 350);
         };
 
         const cancelPress = () => clearTimeout(pressTimer);
@@ -504,6 +498,7 @@
         card.addEventListener('mouseup', cancelPress);
 
         card.onclick = (e) => {
+          e.preventDefault();
           if (isLongPress) {
             isLongPress = false;
             return;
@@ -548,70 +543,14 @@
       document.getElementById('cameraInput').click();
     }
 
-    function removeVietnameseTones(str) {
-      return str.normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/đ/g, 'd').replace(/Đ/g, 'D')
-        .toUpperCase();
-    }
-
-    // TỐI ƯU CẮT 35% PHẦN ĐẦU TRANG ĐỂ QUÉT CHỮ SIÊU NHANH (0.3s)
-    function cropTopHeaderForOCR(dataUrl, maxWidth) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const cropHeight = img.height * 0.35; // Chỉ cắt 35% phần đầu chứa tiêu đề
-          const scale = maxWidth / img.width;
-          canvas.width = maxWidth;
-          canvas.height = cropHeight * scale;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, img.width, cropHeight, 0, 0, canvas.width, canvas.height);
-          resolve(canvas.toDataURL('image/jpeg', 0.8));
-        };
-        img.src = dataUrl;
-      });
-    }
-
-    async function autoDetectFolderWithOCR(dataUrl) {
-      try {
-        const croppedHeaderUrl = await cropTopHeaderForOCR(dataUrl, 600);
-        const worker = await Tesseract.createWorker('vie');
-        const ret = await worker.recognize(croppedHeaderUrl);
-        await worker.terminate();
-
-        const rawText = ret.data.text || "";
-        const cleanText = removeVietnameseTones(rawText);
-
-        const isHoaDon = cleanText.includes("HOA DON") ||
-                         cleanText.includes("BAN LE") ||
-                         cleanText.includes("THANH TIEN") ||
-                         cleanText.includes("DON VI");
-
-        const isPhieuSua = cleanText.includes("PHIEU") ||
-                           cleanText.includes("SUA CHUA") ||
-                           cleanText.includes("ZEMA") ||
-                           cleanText.includes("DE XUAT") ||
-                           cleanText.includes("TAI SAN");
-
-        if (isHoaDon) return "hoa_don";
-        else if (isPhieuSua) return "phieu_sua";
-        else return "may";
-      } catch (err) {
-        console.error("Lỗi OCR:", err);
-        return currentFolder;
-      }
-    }
-
+    // NHẬN DIỆN THỦ CÔNG / TỰ ĐỘNG SIÊU NHANH BẰNG TỶ LỆ CẤU TRÚC LỰA CHỌN MẶC ĐỊNH LƯU VÀO FOLDER ĐANG CHỌN
     async function handleImageCapture(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const captureBranch = currentBranch;
+      const targetFolder = currentFolder; // Lưu trực tiếp vào tab đang chọn lập tức trong 0.1s
       const reader = new FileReader();
-
-      const loadingModal = document.getElementById('ocrLoadingModal');
-      loadingModal.classList.remove('hidden');
 
       reader.onload = async (e) => {
         const rawDataUrl = e.target.result;
@@ -619,13 +558,13 @@
         const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
         const dateKey = now.toISOString().split('T')[0];
 
-        const detectedFolder = await autoDetectFolderWithOCR(rawDataUrl);
+        // Đóng dấu Watermark Chi nhánh & Ngày chụp
         const stampedDataUrl = await addWatermarkToImage(rawDataUrl, captureBranch, dateFormatted);
 
         const photoObj = {
           branch: captureBranch,
           date: dateKey,
-          folder: detectedFolder,
+          folder: targetFolder,
           capturedDate: dateFormatted,
           dataUrl: stampedDataUrl
         };
@@ -633,10 +572,9 @@
         const tx = db.transaction(["photos"], "readwrite");
         tx.objectStore("photos").add(photoObj);
         tx.oncomplete = () => {
-          loadingModal.classList.add('hidden');
           selectedDate = dateKey;
-          switchFolder(detectedFolder);
           renderCalendar();
+          loadImagesForCurrentView(); // Cập nhật ngay lưới ảnh
         };
       };
 
@@ -721,24 +659,24 @@
       };
     }
 
-    function downloadImageFile(dataUrl, filename) {
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
-
-    async function downloadSingleImage() {
+    // LƯU 1 ẢNH VÀO ALBUM MÁY (SỬ DỤNG SHARE SHEET LƯU 1 CHẠM TỨC THÌ)
+    async function saveSingleToPhotos() {
       if (!activeModalImgId) return;
       const tx = db.transaction(["photos"], "readonly");
       const req = tx.objectStore("photos").get(activeModalImgId);
-      req.onsuccess = () => {
+      req.onsuccess = async () => {
         const photo = req.result;
         if (photo) {
-          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
-          downloadImageFile(photo.dataUrl, filename);
+          const blob = await (await fetch(photo.dataUrl)).blob();
+          const file = new File([blob], `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}.jpg`, { type: 'image/jpeg' });
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try { await navigator.share({ files: [file] }); } catch (e) {}
+          } else {
+            const a = document.createElement('a');
+            a.href = photo.dataUrl;
+            a.download = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}.jpg`;
+            a.click();
+          }
         }
       };
     }
@@ -751,19 +689,6 @@
         closeModal();
         renderCalendar();
         loadImagesForCurrentView();
-      };
-    }
-
-    async function shareSingleImage() {
-      const tx = db.transaction(["photos"], "readonly");
-      const req = tx.objectStore("photos").get(activeModalImgId);
-      req.onsuccess = async () => {
-        const photo = req.result;
-        if (photo && navigator.share) {
-          const blob = await (await fetch(photo.dataUrl)).blob();
-          const file = new File([blob], `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}.jpg`, { type: 'image/jpeg' });
-          try { await navigator.share({ title: photo.branch, files: [file] }); } catch (e) {}
-        }
       };
     }
 
@@ -814,21 +739,34 @@
       loadImagesForCurrentView();
     }
 
-    async function batchDownload() {
+    // LƯU NHIỀU ẢNH VÀO ALBUM MÁY
+    async function batchSaveToPhotos() {
       if (selectedImageIds.size === 0) return;
+      const filesArr = [];
       const tx = db.transaction(["photos"], "readonly");
       const store = tx.objectStore("photos");
 
-      let delay = 0;
       for (let id of selectedImageIds) {
         const photo = await new Promise(res => { store.get(id).onsuccess = e => res(e.target.result); });
         if (photo) {
-          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
+          const blob = await (await fetch(photo.dataUrl)).blob();
+          filesArr.push(new File([blob], `ZemaR_${photo.branch}_${id}.jpg`, { type: 'image/jpeg' }));
+        }
+      }
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: filesArr })) {
+        try { await navigator.share({ files: filesArr }); } catch (e) {}
+      } else {
+        let delay = 0;
+        filesArr.forEach(file => {
           setTimeout(() => {
-            downloadImageFile(photo.dataUrl, filename);
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(file);
+            a.download = file.name;
+            a.click();
           }, delay);
           delay += 250;
-        }
+        });
       }
     }
 
@@ -838,23 +776,6 @@
       const store = tx.objectStore("photos");
       selectedImageIds.forEach(id => store.delete(id));
       tx.oncomplete = () => { exitBatchMode(); renderCalendar(); };
-    }
-
-    async function batchShare() {
-      const filesArr = [];
-      const tx = db.transaction(["photos"], "readonly");
-      const store = tx.objectStore("photos");
-
-      for (let id of selectedImageIds) {
-        const photo = await new Promise(res => { store.get(id).onsuccess = e => res(e.target.result); });
-        if (photo) {
-          const blob = await (await fetch(photo.dataUrl)).blob();
-          filesArr.push(new File([blob], `ZemaR_${id}.jpg`, { type: 'image/jpeg' }));
-        }
-      }
-      if (navigator.share && filesArr.length > 0) {
-        try { await navigator.share({ title: 'Zema R Multi Share', files: filesArr }); } catch (e) {}
-      }
     }
   </script>
 </body>
