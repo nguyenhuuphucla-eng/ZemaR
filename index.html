@@ -11,7 +11,7 @@
   <meta name="apple-mobile-web-app-title" content="Zema R">
   <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/z.png">
 
-  <!-- Tailwind CSS, Lucide Icons & Thư viện OCR Quét Chữ Tiếng Việt -->
+  <!-- Tailwind CSS, Lucide Icons & Thư viện OCR Quét Chữ -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -69,12 +69,11 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between pb-10">
 
-  <!-- Màn hình chờ khi đang OCR quét chữ -->
+  <!-- Màn hình chờ siêu nhanh khi đang OCR quét chữ -->
   <div id="ocrLoadingModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 p-6 rounded-2xl flex flex-col items-center gap-3 text-center shadow-2xl max-w-xs w-full">
-      <div class="w-10 h-10 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-      <p class="font-bold text-pink-400 text-sm">Đang quét chữ nhận diện...</p>
-      <p class="text-xs text-slate-400">Đang đọc tiêu đề Phiếu Sửa / Hóa Đơn để tự động phân loại thư mục</p>
+    <div class="bg-slate-900 border border-slate-700 p-5 rounded-2xl flex flex-col items-center gap-3 text-center shadow-2xl max-w-xs w-full">
+      <div class="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+      <p class="font-bold text-pink-400 text-xs">Đang quét nhanh tiêu đề...</p>
     </div>
   </div>
 
@@ -100,21 +99,34 @@
   </header>
 
   <!-- Container Chính -->
-  <main class="max-w-md mx-auto w-full flex-1 px-4 py-3 space-y-4">
+  <main class="max-w-md mx-auto w-full flex-1 px-4 py-3 space-y-3">
 
-    <!-- Lịch chọn ngày -->
-    <section class="bg-slate-900/80 rounded-2xl p-3.5 border border-slate-800 shadow-xl">
-      <div class="flex justify-between items-center mb-3 px-1">
-        <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
-        <span id="calendarMonthYear" class="font-bold text-sm text-pink-400 uppercase tracking-wider">Tháng --/----</span>
-        <button onclick="changeMonth(1)" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+    <!-- Lịch chọn ngày (Thu gọn gọn gàng) -->
+    <section class="bg-slate-900/80 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
+      <button onclick="toggleCalendar()" class="w-full flex justify-between items-center p-3 bg-slate-900 hover:bg-slate-800/80 transition-colors">
+        <div class="flex items-center gap-2">
+          <i data-lucide="calendar" class="w-4 h-4 text-pink-500"></i>
+          <span id="calendarSelectedTitle" class="font-bold text-xs text-pink-400 uppercase tracking-wider">Ngày --/--/----</span>
+        </div>
+        <div class="flex items-center gap-1.5 text-xs text-slate-400">
+          <span id="calendarMonthYear" class="font-semibold text-[11px] text-slate-300">Tháng --/----</span>
+          <i id="calendarChevron" data-lucide="chevron-down" class="w-4 h-4 transition-transform duration-200"></i>
+        </div>
+      </button>
+
+      <div id="calendarBody" class="hidden p-3 pt-0 border-t border-slate-800/60">
+        <div class="flex justify-between items-center my-2 px-1">
+          <button onclick="changeMonth(-1)" class="p-1 hover:bg-slate-800 rounded-lg text-slate-400"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+          <span class="text-xs font-bold text-slate-300 uppercase">Chọn ngày xem ảnh</span>
+          <button onclick="changeMonth(1)" class="p-1 hover:bg-slate-800 rounded-lg text-slate-400"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+        </div>
+
+        <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400 mb-1.5">
+          <span>CN</span><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span>
+        </div>
+
+        <div id="calendarDays" class="grid grid-cols-7 gap-1"></div>
       </div>
-
-      <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold text-slate-400 mb-2">
-        <span>CN</span><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span>
-      </div>
-
-      <div id="calendarDays" class="grid grid-cols-7 gap-1.5"></div>
     </section>
 
     <!-- Thư mục & Nút Chụp -->
@@ -138,17 +150,26 @@
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageCapture(event)">
       </div>
 
-      <!-- Thanh chọn nhiều -->
-      <div id="batchBar" class="hidden bg-pink-950/80 border border-pink-500/40 rounded-xl p-2.5 flex items-center justify-between">
-        <span class="text-xs font-semibold text-pink-200">Đã chọn <b id="batchCount">0</b> ảnh</span>
-        <div class="flex gap-2">
-          <button onclick="batchShare()" class="bg-pink-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
-            <i data-lucide="share-2" class="w-3.5 h-3.5"></i> Share
+      <!-- Thanh chọn nhiều ảnh & Thao tác Tải về / Chọn tất cả -->
+      <div id="batchBar" class="hidden bg-slate-900 border border-pink-500/40 rounded-xl p-2.5 flex flex-col gap-2 shadow-lg">
+        <div class="flex items-center justify-between">
+          <button onclick="toggleSelectAll()" class="bg-slate-800 hover:bg-slate-700 text-pink-400 text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 border border-pink-500/30">
+            <i data-lucide="check-square" class="w-3.5 h-3.5"></i> <span id="btnSelectAllText">Chọn Tất Cả</span>
           </button>
-          <button onclick="batchDelete()" class="bg-red-600 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
+          <span class="text-xs font-semibold text-slate-200">Đã chọn <b id="batchCount" class="text-pink-400">0</b> ảnh</span>
+          <button onclick="exitBatchMode()" class="bg-slate-800 text-slate-400 text-xs px-2 py-1 rounded-lg">Thoát</button>
+        </div>
+
+        <div class="flex gap-2 pt-1 border-t border-slate-800">
+          <button onclick="batchDownload()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-1.5 rounded-lg font-bold flex items-center justify-center gap-1">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> Tải Về Máy
+          </button>
+          <button onclick="batchShare()" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-xs py-1.5 rounded-lg font-bold flex items-center justify-center gap-1">
+            <i data-lucide="share-2" class="w-3.5 h-3.5"></i> Chia Sẻ
+          </button>
+          <button onclick="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center justify-center gap-1">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Xóa
           </button>
-          <button onclick="exitBatchMode()" class="bg-slate-800 text-slate-300 text-xs px-2 py-1.5 rounded-lg">Hủy</button>
         </div>
       </div>
     </section>
@@ -174,7 +195,7 @@
   <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4">
     <div class="flex justify-between items-center text-white z-10">
       <div class="flex gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-700">
-        <span class="text-[10px] text-slate-400 flex items-center px-1 font-semibold">Đổi mục:</span>
+        <span class="text-[10px] text-slate-400 flex items-center px-1 font-semibold">Mục:</span>
         <button onclick="changeImageFolder('may')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Máy</button>
         <button onclick="changeImageFolder('phieu_sua')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Phiếu Sửa</button>
         <button onclick="changeImageFolder('hoa_don')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Hóa Đơn</button>
@@ -192,6 +213,9 @@
       </button>
       <button onclick="zoomModalImage(-0.25)" class="flex flex-col items-center text-slate-300 text-xs gap-1">
         <i data-lucide="zoom-out" class="w-5 h-5 text-pink-400"></i> Thu nhỏ
+      </button>
+      <button onclick="downloadSingleImage()" class="flex flex-col items-center text-emerald-400 text-xs gap-1">
+        <i data-lucide="download" class="w-5 h-5 text-emerald-400"></i> Tải về
       </button>
       <button onclick="shareSingleImage()" class="flex flex-col items-center text-slate-300 text-xs gap-1">
         <i data-lucide="share-2" class="w-5 h-5 text-blue-400"></i> Chia sẻ
@@ -218,6 +242,8 @@
     let currentFolder = "may";
     let db = null;
 
+    let isCalendarOpen = false;
+    let currentFolderPhotosCache = [];
     let isBatchMode = false;
     let selectedImageIds = new Set();
     let activeModalImgId = null;
@@ -234,7 +260,7 @@
 
     function initIndexedDB() {
       return new Promise((resolve) => {
-        const request = indexedDB.open("ZemaR_AutoFilterDB_v8", 8);
+        const request = indexedDB.open("ZemaR_AutoFilterDB_v9", 9);
         request.onupgradeneeded = (e) => {
           db = e.target.result;
           if (!db.objectStoreNames.contains("photos")) {
@@ -335,10 +361,27 @@
       });
     }
 
+    function toggleCalendar() {
+      isCalendarOpen = !isCalendarOpen;
+      const calendarBody = document.getElementById('calendarBody');
+      const chevron = document.getElementById('calendarChevron');
+      if (isCalendarOpen) {
+        calendarBody.classList.remove('hidden');
+        chevron.classList.add('rotate-180');
+      } else {
+        calendarBody.classList.add('hidden');
+        chevron.classList.remove('rotate-180');
+      }
+    }
+
     async function renderCalendar() {
       const monthYearElem = document.getElementById('calendarMonthYear');
+      const titleElem = document.getElementById('calendarSelectedTitle');
       const daysContainer = document.getElementById('calendarDays');
       const monthNames = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+
+      const [sY, sM, sD] = selectedDate.split('-');
+      titleElem.innerText = `Ngày ${sD}/${sM}/${sY}`;
       monthYearElem.innerText = `${monthNames[calendarMonth]} / ${calendarYear}`;
 
       const datesWithPhotos = await getDatesWithPhotosForBranch(currentBranch, calendarYear, calendarMonth);
@@ -356,7 +399,12 @@
         const dayElem = document.createElement('div');
         dayElem.className = `calendar-day ${hasPhotos ? 'has-photos' : 'no-photos'} ${isSelected ? 'selected-day' : ''}`;
         dayElem.innerText = day;
-        dayElem.onclick = () => { selectedDate = dateStr; renderCalendar(); loadImagesForCurrentView(); };
+        dayElem.onclick = (e) => {
+          e.stopPropagation();
+          selectedDate = dateStr;
+          renderCalendar();
+          loadImagesForCurrentView();
+        };
         daysContainer.appendChild(dayElem);
       }
     }
@@ -395,6 +443,7 @@
           ? "flex-1 py-1.5 text-xs font-bold rounded-lg text-pink-400 bg-slate-800"
           : "flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-400";
       });
+      exitBatchMode();
       loadImagesForCurrentView();
     }
 
@@ -409,15 +458,15 @@
       document.getElementById('count-phieu_sua').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'phieu_sua').length})`;
       document.getElementById('count-hoa_don').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'hoa_don').length})`;
 
-      const folderPhotos = allPhotosForBranchAndDay.filter(p => p.folder === currentFolder);
+      currentFolderPhotosCache = allPhotosForBranchAndDay.filter(p => p.folder === currentFolder);
 
-      if (folderPhotos.length === 0) {
+      if (currentFolderPhotosCache.length === 0) {
         emptyState.classList.remove('hidden');
         return;
       }
       emptyState.classList.add('hidden');
 
-      folderPhotos.forEach(photo => {
+      currentFolderPhotosCache.forEach(photo => {
         const card = document.createElement('div');
         card.className = "relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg cursor-pointer";
 
@@ -444,7 +493,7 @@
           pressTimer = setTimeout(() => {
             isLongPress = true;
             toggleBatchSelect(photo.id);
-          }, 450);
+          }, 400);
         };
 
         const cancelPress = () => clearTimeout(pressTimer);
@@ -506,16 +555,18 @@
         .toUpperCase();
     }
 
-    function resizeImageForOCR(dataUrl, maxWidth) {
+    // TỐI ƯU CẮT 35% PHẦN ĐẦU TRANG ĐỂ QUÉT CHỮ SIÊU NHANH (0.3s)
+    function cropTopHeaderForOCR(dataUrl, maxWidth) {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
+          const cropHeight = img.height * 0.35; // Chỉ cắt 35% phần đầu chứa tiêu đề
           const scale = maxWidth / img.width;
           canvas.width = maxWidth;
-          canvas.height = img.height * scale;
+          canvas.height = cropHeight * scale;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, img.width, cropHeight, 0, 0, canvas.width, canvas.height);
           resolve(canvas.toDataURL('image/jpeg', 0.8));
         };
         img.src = dataUrl;
@@ -524,9 +575,9 @@
 
     async function autoDetectFolderWithOCR(dataUrl) {
       try {
-        const resizedDataUrl = await resizeImageForOCR(dataUrl, 800);
+        const croppedHeaderUrl = await cropTopHeaderForOCR(dataUrl, 600);
         const worker = await Tesseract.createWorker('vie');
-        const ret = await worker.recognize(resizedDataUrl);
+        const ret = await worker.recognize(croppedHeaderUrl);
         await worker.terminate();
 
         const rawText = ret.data.text || "";
@@ -670,6 +721,28 @@
       };
     }
 
+    function downloadImageFile(dataUrl, filename) {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    async function downloadSingleImage() {
+      if (!activeModalImgId) return;
+      const tx = db.transaction(["photos"], "readonly");
+      const req = tx.objectStore("photos").get(activeModalImgId);
+      req.onsuccess = () => {
+        const photo = req.result;
+        if (photo) {
+          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
+          downloadImageFile(photo.dataUrl, filename);
+        }
+      };
+    }
+
     async function deleteSingleImage() {
       if (!confirm("Xác nhận xóa hình ảnh này?")) return;
       const tx = db.transaction(["photos"], "readwrite");
@@ -699,11 +772,38 @@
       if (selectedImageIds.has(id)) selectedImageIds.delete(id);
       else selectedImageIds.add(id);
 
-      if (selectedImageIds.size === 0) exitBatchMode();
-      else {
+      if (selectedImageIds.size === 0) {
+        exitBatchMode();
+      } else {
         document.getElementById('batchBar').classList.remove('hidden');
         document.getElementById('batchCount').innerText = selectedImageIds.size;
+        updateSelectAllButtonText();
         loadImagesForCurrentView();
+      }
+    }
+
+    function toggleSelectAll() {
+      if (!currentFolderPhotosCache || currentFolderPhotosCache.length === 0) return;
+
+      if (selectedImageIds.size === currentFolderPhotosCache.length) {
+        selectedImageIds.clear();
+        exitBatchMode();
+      } else {
+        isBatchMode = true;
+        currentFolderPhotosCache.forEach(p => selectedImageIds.add(p.id));
+        document.getElementById('batchBar').classList.remove('hidden');
+        document.getElementById('batchCount').innerText = selectedImageIds.size;
+        updateSelectAllButtonText();
+        loadImagesForCurrentView();
+      }
+    }
+
+    function updateSelectAllButtonText() {
+      const btnText = document.getElementById('btnSelectAllText');
+      if (currentFolderPhotosCache && selectedImageIds.size === currentFolderPhotosCache.length) {
+        btnText.innerText = "Bỏ Chọn Tất Cả";
+      } else {
+        btnText.innerText = "Chọn Tất Cả";
       }
     }
 
@@ -712,6 +812,24 @@
       selectedImageIds.clear();
       document.getElementById('batchBar').classList.add('hidden');
       loadImagesForCurrentView();
+    }
+
+    async function batchDownload() {
+      if (selectedImageIds.size === 0) return;
+      const tx = db.transaction(["photos"], "readonly");
+      const store = tx.objectStore("photos");
+
+      let delay = 0;
+      for (let id of selectedImageIds) {
+        const photo = await new Promise(res => { store.get(id).onsuccess = e => res(e.target.result); });
+        if (photo) {
+          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
+          setTimeout(() => {
+            downloadImageFile(photo.dataUrl, filename);
+          }, delay);
+          delay += 250;
+        }
+      }
     }
 
     async function batchDelete() {
