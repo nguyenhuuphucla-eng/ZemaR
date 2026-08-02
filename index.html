@@ -175,7 +175,10 @@
 
         <div class="flex gap-2 pt-1 border-t border-slate-800">
           <button onclick="batchSaveToPhotos()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1">
-            <i data-lucide="download" class="w-3.5 h-3.5"></i> Lưu Vào Album Máy
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> Lưu Album
+          </button>
+          <button onclick="batchShare()" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1">
+            <i data-lucide="share-2" class="w-3.5 h-3.5"></i> Chia Sẻ
           </button>
           <button onclick="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-2 rounded-lg font-bold flex items-center justify-center gap-1">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Xóa
@@ -227,6 +230,9 @@
       <button onclick="saveSingleToPhotos()" class="flex flex-col items-center text-emerald-400 text-xs gap-1">
         <i data-lucide="download" class="w-5 h-5 text-emerald-400"></i> Lưu về máy
       </button>
+      <button onclick="shareSingleImage()" class="flex flex-col items-center text-pink-400 text-xs gap-1">
+        <i data-lucide="share-2" class="w-5 h-5 text-pink-400"></i> Chia sẻ
+      </button>
       <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1">
         <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa
       </button>
@@ -246,10 +252,10 @@
     let selectedDate = new Date().toISOString().split('T')[0];
     let calendarMonth = new Date().getMonth();
     let calendarYear = new Date().getFullYear();
-    let currentFolder = "tat_ca"; // Mặc định hiển thị Tất Cả ảnh khi mở ứng dụng
+    let currentFolder = "tat_ca";
     let db = null;
     let ocrWorker = null;
-    let currentRenderId = 0; // Khóa chống trùng lặp Thumbnail
+    let currentRenderId = 0;
 
     let isCalendarOpen = false;
     let currentFolderPhotosCache = [];
@@ -280,7 +286,7 @@
 
     function initIndexedDB() {
       return new Promise((resolve) => {
-        const request = indexedDB.open("ZemaR_AutoFilterDB_v12", 12);
+        const request = indexedDB.open("ZemaR_AutoFilterDB_v13", 13);
         request.onupgradeneeded = (e) => {
           db = e.target.result;
           if (!db.objectStoreNames.contains("photos")) {
@@ -469,26 +475,22 @@
       loadImagesForCurrentView();
     }
 
-    // XỬ LÝ VẼ LƯỚI ẢNH CHỐNG NHÂN ĐÔI THUMBNAIL
     async function loadImagesForCurrentView() {
-      const renderId = ++currentRenderId; // Tạo mã khóa thứ tự vẽ
+      const renderId = ++currentRenderId;
       const grid = document.getElementById('imageGrid');
       const emptyState = document.getElementById('emptyState');
 
       const allPhotosForBranchAndDay = await getPhotosByBranchAndDate(currentBranch, selectedDate);
 
-      // Nếu có lệnh vẽ mới hơn đang chờ, hủy bỏ lệnh cũ để chống trùng 2 thumbnail
       if (renderId !== currentRenderId) return;
 
-      grid.innerHTML = ""; // Xóa sạch giao diện trước khi thêm ảnh mới
+      grid.innerHTML = "";
 
-      // Cập nhật số lượng đếm trên từng Tab
       document.getElementById('count-tat_ca').innerText = `(${allPhotosForBranchAndDay.length})`;
       document.getElementById('count-may').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'may').length})`;
       document.getElementById('count-phieu_sua').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'phieu_sua').length})`;
       document.getElementById('count-hoa_don').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'hoa_don').length})`;
 
-      // Lọc danh sách ảnh theo tab đang chọn
       if (currentFolder === 'tat_ca') {
         currentFolderPhotosCache = allPhotosForBranchAndDay;
       } else {
@@ -793,6 +795,24 @@
       };
     }
 
+    async function shareSingleImage() {
+      if (!activeModalImgId) return;
+      const tx = db.transaction(["photos"], "readonly");
+      const req = tx.objectStore("photos").get(activeModalImgId);
+      req.onsuccess = async () => {
+        const photo = req.result;
+        if (photo) {
+          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
+          const file = dataURLtoFile(photo.dataUrl, filename);
+          if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+            try { await navigator.share({ title: photo.branch, files: [file] }); } catch (e) {}
+          } else {
+            alert("Trình duyệt không hỗ trợ nút Chia Sẻ trực tiếp.");
+          }
+        }
+      };
+    }
+
     async function deleteSingleImage() {
       if (!confirm("Xác nhận xóa hình ảnh này?")) return;
       const tx = db.transaction(["photos"], "readwrite");
@@ -851,6 +871,7 @@
       loadImagesForCurrentView();
     }
 
+    // LƯU NHIỀU ẢNH VÀO ALBUM MÁY & TỰ ĐỘNG THOÁT TICK CHỌN
     async function batchSaveToPhotos() {
       if (selectedImageIds.size === 0) return;
       const filesArr = [];
@@ -885,6 +906,40 @@
           await new Promise(r => setTimeout(r, 250));
         }
       }
+
+      // Tự động thoát chế độ chọn
+      exitBatchMode();
+    }
+
+    // CHIA SẺ NHIỀU ẢNH SANG APP KHÁC & TỰ ĐỘNG THOÁT TICK CHỌN
+    async function batchShare() {
+      if (selectedImageIds.size === 0) return;
+      const filesArr = [];
+      const tx = db.transaction(["photos"], "readonly");
+      const store = tx.objectStore("photos");
+
+      for (let id of selectedImageIds) {
+        const photo = await new Promise(res => { store.get(id).onsuccess = e => res(e.target.result); });
+        if (photo && photo.dataUrl) {
+          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
+          filesArr.push(dataURLtoFile(photo.dataUrl, filename));
+        }
+      }
+
+      if (filesArr.length === 0) return;
+
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: filesArr })) {
+        try {
+          await navigator.share({ title: 'Zema R Chia Sẻ Ảnh', files: filesArr });
+        } catch (e) {
+          console.log("Đã hủy chia sẻ");
+        }
+      } else {
+        alert("Trình duyệt không hỗ trợ tính năng chia sẻ nhiều ảnh cùng lúc.");
+      }
+
+      // Tự động thoát chế độ chọn
+      exitBatchMode();
     }
 
     async function batchDelete() {
