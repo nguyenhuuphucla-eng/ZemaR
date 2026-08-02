@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Zema R - Quản Lý Hình Ảnh</title>
+
+  <!-- PWA iOS Support -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Zema R">
+  <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/z.png">
+
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Tesseract OCR for Auto-Classification -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
+  <style>
+    * {
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0f172a;
+      color: #f8fafc;
+      overflow-x: hidden;
+    }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+    /* Calendar Grid Styling */
+    .calendar-day {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      font-size: 0.875rem;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      position: relative;
+    }
+    .has-photos {
+      background-color: #10b981 !important; /* Green */
+      color: #ffffff !important;
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    .no-photos {
+      opacity: 0.25;
+      background-color: #334155;
+      color: #94a3b8;
+    }
+    .selected-day {
+      ring: 3px solid #ec4899;
+      transform: scale(1.08);
+      z-index: 10;
+    }
+    /* Logo styling */
+    .zema-logo {
+      background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
+      color: white;
+      font-weight: 900;
+      font-family: 'Arial Black', sans-serif;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between pb-10">
+
+  <!-- Top Bar: Branch Selector & Password Guard -->
+  <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 shadow-md">
+    <div class="max-w-md mx-auto flex items-center justify-between gap-3">
+      <!-- App Brand -->
+      <div class="flex items-center gap-2.5">
+        <div class="zema-logo w-9 h-9 text-xl shadow-pink-500/20 italic transform -skew-x-6">Z</div>
+        <div>
+          <h1 class="text-lg font-black tracking-wide text-pink-500 leading-none">ZEMA R</h1>
+          <span class="text-[10px] text-slate-400 font-medium">Image Manager</span>
+        </div>
+      </div>
+
+      <!-- Branch Selection Dropdown & Controls -->
+      <div class="flex items-center gap-2">
+        <select id="branchSelect" onchange="onBranchChange()" class="bg-slate-800 text-pink-400 border border-pink-500/30 font-bold text-xs rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-pink-500">
+          <!-- Dynamic Branches -->
+        </select>
+        <button onclick="promptAdminBranch()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 p-2 rounded-lg border border-slate-700" title="Quản lý chi nhánh (Pass: 0000)">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-md mx-auto w-full flex-1 px-4 py-3 space-y-4">
+
+    <!-- Calendar View Section -->
+    <section class="bg-slate-900/80 rounded-2xl p-3.5 border border-slate-800 shadow-xl">
+      <div class="flex justify-between items-center mb-3 px-1">
+        <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
+        <span id="calendarMonthYear" class="font-bold text-sm text-pink-400 uppercase tracking-wider">Tháng --/----</span>
+        <button onclick="changeMonth(1)" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400"><i data-lucide="chevron-right" class="w-5 h-5"></i></button>
+      </div>
+
+      <!-- Day Headers -->
+      <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold text-slate-400 mb-2">
+        <span>CN</span><span>T2</span><span>T3</span><span>T4</span><span>T5</span><span>T6</span><span>T7</span>
+      </div>
+
+      <!-- Calendar Days Grid -->
+      <div id="calendarDays" class="grid grid-cols-7 gap-1.5">
+        <!-- Rendered via JS -->
+      </div>
+    </section>
+
+    <!-- Folder Tabs & Batch Mode Header -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800 flex-1 mr-2">
+          <button onclick="switchFolder('may')" id="tab-may" class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all text-pink-400 bg-slate-800 shadow">
+            Hình Máy <span id="count-may" class="text-[10px] opacity-75">(0)</span>
+          </button>
+          <button onclick="switchFolder('phieu_sua')" id="tab-phieu_sua" class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-400">
+            Phiếu Sửa <span id="count-phieu_sua" class="text-[10px] opacity-75">(0)</span>
+          </button>
+          <button onclick="switchFolder('hoa_don')" id="tab-hoa_don" class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-400">
+            Hóa Đơn <span id="count-hoa_don" class="text-[10px] opacity-75">(0)</span>
+          </button>
+        </div>
+
+        <button onclick="triggerCameraInput()" class="bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold p-2.5 rounded-xl shadow-lg active:scale-95 transition-transform flex items-center justify-center">
+          <i data-lucide="camera" class="w-5 h-5"></i>
+        </button>
+        <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageCapture(event)">
+      </div>
+
+      <!-- Batch Mode Bar (Hidden by default) -->
+      <div id="batchBar" class="hidden bg-pink-950/80 border border-pink-500/40 rounded-xl p-2.5 flex items-center justify-between animate-fade-in">
+        <span class="text-xs font-semibold text-pink-200"><i data-lucide="check-square" class="w-4 h-4 inline mr-1"></i> Đã chọn <b id="batchCount">0</b> ảnh</span>
+        <div class="flex gap-2">
+          <button onclick="batchShare()" class="bg-pink-600 hover:bg-pink-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
+            <i data-lucide="share-2" class="w-3.5 h-3.5"></i> Share
+          </button>
+          <button onclick="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1">
+            <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Xóa
+          </button>
+          <button onclick="exitBatchMode()" class="bg-slate-800 text-slate-300 text-xs px-2 py-1.5 rounded-lg">Hủy</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Image Grid Container -->
+    <section>
+      <div id="imageGrid" class="grid grid-cols-2 gap-3">
+        <!-- Rendered dynamically -->
+      </div>
+      <div id="emptyState" class="hidden text-center py-12 text-slate-500 space-y-2">
+        <i data-lucide="image-off" class="w-10 h-10 mx-auto text-slate-600"></i>
+        <p class="text-xs font-medium">Không có hình ảnh cho ngày này</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Copyright Footer -->
+  <footer class="mt-8 text-center text-[11px] text-slate-500 py-3 border-t border-slate-900">
+    <p class="font-medium text-slate-400">© Copyright Nguyễn Hữu Phúc</p>
+    <p class="text-[10px] text-slate-500 mt-0.5">Tel: 0908893082</p>
+  </footer>
+
+  <!-- Fullscreen Single Image Modal (Viewer, Zoom, Share, Delete) -->
+  <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4">
+    <div class="flex justify-between items-center text-white z-10">
+      <span id="modalMetaInfo" class="text-xs font-semibold text-pink-400">---</span>
+      <button onclick="closeModal()" class="p-2 bg-slate-800/80 rounded-full text-slate-300"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+
+    <!-- Scalable Canvas Image Wrapper -->
+    <div class="flex-1 flex items-center justify-center overflow-hidden my-auto relative">
+      <img id="modalImg" class="max-h-[75vh] max-w-full object-contain transition-transform duration-200" style="transform: scale(1);" alt="Preview">
+    </div>
+
+    <!-- Action Toolbar -->
+    <div class="flex justify-around items-center bg-slate-900/90 backdrop-blur-md rounded-2xl py-3 border border-slate-800">
+      <button onclick="zoomModalImage(0.25)" class="flex flex-col items-center text-slate-300 text-xs gap-1">
+        <i data-lucide="zoom-in" class="w-5 h-5 text-pink-400"></i> Ph phóng
+      </button>
+      <button onclick="zoomModalImage(-0.25)" class="flex flex-col items-center text-slate-300 text-xs gap-1">
+        <i data-lucide="zoom-out" class="w-5 h-5 text-pink-400"></i> Thu nhỏ
+      </button>
+      <button onclick="shareSingleImage()" class="flex flex-col items-center text-slate-300 text-xs gap-1">
+        <i data-lucide="share-2" class="w-5 h-5 text-blue-400"></i> Chia sẻ
+      </button>
+      <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1">
+        <i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading Overlay for Auto OCR & Capture -->
+  <div id="loadingOverlay" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex flex-col items-center justify-center space-y-3">
+    <div class="w-10 h-10 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+    <p id="loadingText" class="text-xs font-bold text-pink-400 tracking-wide">Đang phân loại & xử lý ảnh...</p>
+  </div>
+
+  <!-- Application Logic -->
+  <script>
+    // System Constants
+    const ADMIN_PASS = "0000";
+    const DEFAULT_BRANCHES = [
+      "CN 190 3/2", "CN 352 Trường Chinh", "CN 101 Bùi Thị Xuân",
+      "CN 04 Hai Bà Trưng", "CN 76 Quốc Hương", "CN 45 Cao Thắng",
+      "CN 84 Nguyễn Thị Thập", "CN 12 Phan Văn Trị", "CN 25 Hoàng Văn Thụ",
+      "CN 18 Phạm Văn Đồng", "CN 09 Quang Trung", "CN 33 Võ Văn Ngân", "CN 52 Kinh Dương Vương"
+    ];
+
+    // App State Variables
+    let currentBranch = "";
+    let selectedDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    let calendarMonth = new Date().getMonth();
+    let calendarYear = new Date().getFullYear();
+    let currentFolder = "may"; // 'may', 'phieu_sua', 'hoa_don'
+    let db = null;
+
+    let isBatchMode = false;
+    let selectedImageIds = new Set();
+    let activeModalImgId = null;
+    let currentZoomScale = 1;
+
+    // Initialize App & IndexedDB
+    window.addEventListener('DOMContentLoaded', async () => {
+      lucide.createIcons();
+      await initIndexedDB();
+      initBranches();
+      renderCalendar();
+      loadImagesForCurrentView();
+    });
+
+    // --- IndexedDB Database Setup ---
+    function initIndexedDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("ZemaR_Database", 1);
+        request.onupgradeneeded = (e) => {
+          db = e.target.result;
+          if (!db.objectStoreNames.contains("photos")) {
+            const store = db.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
+            store.createIndex("date", "date", { unique: false });
+            store.createIndex("folder", "folder", { unique: false });
+          }
+        };
+        request.onsuccess = (e) => {
+          db = e.target.result;
+          resolve();
+        };
+        request.onerror = (e) => reject(e);
+      });
+    }
+
+    // --- Branch Management & Password Verification ---
+    function initBranches() {
+      let savedBranches = JSON.parse(localStorage.getItem('zema_branches'));
+      if (!savedBranches || savedBranches.length === 0) {
+        savedBranches = DEFAULT_BRANCHES;
+        localStorage.setItem('zema_branches', JSON.stringify(savedBranches));
+      }
+      
+      currentBranch = localStorage.getItem('zema_current_branch') || savedBranches[0];
+      renderBranchDropdown(savedBranches);
+    }
+
+    function renderBranchDropdown(branches) {
+      const select = document.getElementById('branchSelect');
+      select.innerHTML = branches.map(b => `<option value="${b}" ${b === currentBranch ? 'selected' : ''}>${b}</option>`).join('');
+    }
+
+    function onBranchChange() {
+      const select = document.getElementById('branchSelect');
+      currentBranch = select.value;
+      localStorage.setItem('zema_current_branch', currentBranch);
+      loadImagesForCurrentView(); // Dynamic watermark will adjust automatically on render
+    }
+
+    function promptAdminBranch() {
+      const pass = prompt("Nhập mật khẩu xác nhận (Pass mặc định: 0000):");
+      if (pass !== ADMIN_PASS) {
+        alert("Mật khẩu không chính xác!");
+        return;
+      }
+
+      const action = prompt("Chọn thao tác:\n1. Thêm Chi Nhánh Mới\n2. Đổi Tên Chi Nhánh Hiện Tại", "1");
+      let branches = JSON.parse(localStorage.getItem('zema_branches')) || DEFAULT_BRANCHES;
+
+      if (action === "1") {
+        const newName = prompt("Nhập tên chi nhánh mới:");
+        if (newName && newName.trim()) {
+          branches.push(newName.trim());
+          localStorage.setItem('zema_branches', JSON.stringify(branches));
+          currentBranch = newName.trim();
+          localStorage.setItem('zema_current_branch', currentBranch);
+          renderBranchDropdown(branches);
+          loadImagesForCurrentView();
+          alert("Đã thêm chi nhánh thành công!");
+        }
+      } else if (action === "2") {
+        const newName = prompt("Nhập tên mới cho chi nhánh [" + currentBranch + "]:");
+        if (newName && newName.trim()) {
+          const idx = branches.indexOf(currentBranch);
+          if (idx !== -1) branches[idx] = newName.trim();
+          currentBranch = newName.trim();
+          localStorage.setItem('zema_branches', JSON.stringify(branches));
+          localStorage.setItem('zema_current_branch', currentBranch);
+          renderBranchDropdown(branches);
+          loadImagesForCurrentView();
+          alert("Đã đổi tên chi nhánh thành công!");
+        }
+      }
+    }
+
+    // --- Calendar System ---
+    async function renderCalendar() {
+      const monthYearElem = document.getElementById('calendarMonthYear');
+      const daysContainer = document.getElementById('calendarDays');
+      
+      const monthNames = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+      monthYearElem.innerText = `${monthNames[calendarMonth]} / ${calendarYear}`;
+
+      // Get dates that have photos in database
+      const datesWithPhotos = await getDatesWithPhotosInMonth(calendarYear, calendarMonth);
+
+      const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
+      const totalDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
+
+      daysContainer.innerHTML = "";
+
+      // Blank slots
+      for (let i = 0; i < firstDay; i++) {
+        daysContainer.innerHTML += `<div></div>`;
+      }
+
+      // Render days
+      for (let day = 1; day <= totalDays; day++) {
+        const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const hasPhotos = datesWithPhotos.has(dateStr);
+        const isSelected = dateStr === selectedDate;
+
+        const dayElem = document.createElement('div');
+        dayElem.className = `calendar-day ${hasPhotos ? 'has-photos' : 'no-photos'} ${isSelected ? 'selected-day' : ''}`;
+        dayElem.innerText = day;
+        dayElem.onclick = () => selectDate(dateStr);
+
+        daysContainer.appendChild(dayElem);
+      }
+    }
+
+    function changeMonth(delta) {
+      calendarMonth += delta;
+      if (calendarMonth > 11) { calendarMonth = 0; calendarYear++; }
+      if (calendarMonth < 0) { calendarMonth = 11; calendarYear--; }
+      renderCalendar();
+    }
+
+    function selectDate(dateStr) {
+      selectedDate = dateStr;
+      renderCalendar();
+      loadImagesForCurrentView();
+    }
+
+    function getDatesWithPhotosInMonth(year, month) {
+      return new Promise((resolve) => {
+        const transaction = db.transaction(["photos"], "readonly");
+        const store = transaction.objectStore("photos");
+        const dates = new Set();
+
+        store.openCursor().onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            const date = cursor.value.date; // YYYY-MM-DD
+            const [y, m] = date.split('-').map(Number);
+            if (y === year && m === (month + 1)) {
+              dates.add(date);
+            }
+            cursor.continue();
+          } else {
+            resolve(dates);
+          }
+        };
+      });
+    }
+
+    // --- Folder Navigation & Image Loading ---
+    function switchFolder(folder) {
+      currentFolder = folder;
+      ['may', 'phieu_sua', 'hoa_don'].forEach(f => {
+        const btn = document.getElementById(`tab-${f}`);
+        if (f === folder) {
+          btn.className = "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all text-pink-400 bg-slate-800 shadow";
+        } else {
+          btn.className = "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-400";
+        }
+      });
+      loadImagesForCurrentView();
+    }
+
+    async function loadImagesForCurrentView() {
+      const grid = document.getElementById('imageGrid');
+      const emptyState = document.getElementById('emptyState');
+      grid.innerHTML = "";
+
+      const allPhotosForDay = await getPhotosByDate(selectedDate);
+      
+      // Update folder counts
+      document.getElementById('count-may').innerText = `(${allPhotosForDay.filter(p => p.folder === 'may').length})`;
+      document.getElementById('count-phieu_sua').innerText = `(${allPhotosForDay.filter(p => p.folder === 'phieu_sua').length})`;
+      document.getElementById('count-hoa_don').innerText = `(${allPhotosForDay.filter(p => p.folder === 'hoa_don').length})`;
+
+      const folderPhotos = allPhotosForDay.filter(p => p.folder === currentFolder);
+
+      if (folderPhotos.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      } else {
+        emptyState.classList.add('hidden');
+      }
+
+      folderPhotos.forEach(photo => {
+        const card = document.createElement('div');
+        card.className = "relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg group cursor-pointer";
+        
+        // Render Image Canvas with Dynamic Watermark (Branch name dynamic, Date fixed)
+        const imgContainer = document.createElement('div');
+        imgContainer.className = "relative aspect-square bg-slate-950";
+        
+        const img = document.createElement('img');
+        img.src = photo.dataUrl;
+        img.className = "w-full h-full object-cover";
+
+        // Dynamic Watermark Overlay (Fixed Date + Dynamic Branch Name)
+        const watermark = document.createElement('div');
+        watermark.className = "absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/60 to-transparent p-2 text-left";
+        watermark.innerHTML = `
+          <p class="text-[11px] font-bold text-pink-400 truncate">${currentBranch}</p>
+          <p class="text-[9px] text-slate-300 font-medium">${photo.capturedDate}</p>
+        `;
+
+        // Checkbox Overlay for Batch Select Mode
+        const checkOverlay = document.createElement('div');
+        checkOverlay.className = `absolute top-2 right-2 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center transition-all ${selectedImageIds.has(photo.id) ? 'bg-pink-500 border-pink-500' : 'bg-black/40'}`;
+        checkOverlay.innerHTML = selectedImageIds.has(photo.id) ? `<i data-lucide="check" class="w-4 h-4 text-white"></i>` : ``;
+
+        imgContainer.appendChild(img);
+        imgContainer.appendChild(watermark);
+        imgContainer.appendChild(checkOverlay);
+        card.appendChild(imgContainer);
+
+        // Press & Hold (Long Press) Event Logic
+        let pressTimer;
+        card.addEventListener('touchstart', () => {
+          pressTimer = setTimeout(() => {
+            toggleBatchSelect(photo.id);
+          }, 500); // 500ms long press
+        });
+        card.addEventListener('touchend', () => clearTimeout(pressTimer));
+        card.addEventListener('mousedown', () => {
+          pressTimer = setTimeout(() => {
+            toggleBatchSelect(photo.id);
+          }, 500);
+        });
+        card.addEventListener('mouseup', () => clearTimeout(pressTimer));
+
+        card.onclick = (e) => {
+          if (isBatchMode) {
+            toggleBatchSelect(photo.id);
+          } else {
+            openSingleImageModal(photo);
+          }
+        };
+
+        grid.appendChild(card);
+      });
+
+      lucide.createIcons();
+    }
+
+    function getPhotosByDate(dateStr) {
+      return new Promise((resolve) => {
+        const transaction = db.transaction(["photos"], "readonly");
+        const store = transaction.objectStore("photos");
+        const index = store.index("date");
+        const request = index.getAll(dateStr);
+        request.onsuccess = () => resolve(request.result || []);
+      });
+    }
+
+    // --- Image Capture & Intelligent Auto-Classification ---
+    function triggerCameraInput() {
+      document.getElementById('cameraInput').click();
+    }
+
+    async function handleImageCapture(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      showLoading(true, "Đang tự động quét & phân loại ảnh...");
+
+      try {
+        const dataUrl = await readFileAsDataURL(file);
+        
+        // OCR scanning for automatic classification
+        const classifiedFolder = await classifyImageWithOCR(dataUrl);
+
+        // Fixed date stamp at capture moment (formatted DD/MM/YYYY)
+        const now = new Date();
+        const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+        const dateKey = now.toISOString().split('T')[0];
+
+        const photoObj = {
+          date: dateKey,
+          folder: classifiedFolder,
+          capturedDate: dateFormatted,
+          dataUrl: dataUrl
+        };
+
+        await savePhotoToDB(photoObj);
+
+        selectedDate = dateKey;
+        currentFolder = classifiedFolder;
+        
+        showLoading(false);
+        renderCalendar();
+        switchFolder(classifiedFolder);
+
+      } catch (err) {
+        showLoading(false);
+        alert("Lỗi khi xử lý hình ảnh: " + err.message);
+      }
+    }
+
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function classifyImageWithOCR(dataUrl) {
+      try {
+        // Tesseract OCR scan
+        const worker = await Tesseract.createWorker('vie');
+        const ret = await worker.recognize(dataUrl);
+        await worker.terminate();
+
+        const text = ret.data.text.toLowerCase();
+
+        if (text.includes("hóa đơn") || text.includes("hoa don") || text.includes("thành tiền") || text.includes("đơn vị")) {
+          return "hoa_don";
+        } else if (text.includes("phiếu đề xuất") || text.includes("sửa chữa") || text.includes("máy") || text.includes("phieu de xuat")) {
+          return "phieu_sua";
+        } else {
+          return "may"; // Default fallback
+        }
+      } catch (e) {
+        return "may";
+      }
+    }
+
+    function savePhotoToDB(photoObj) {
+      return new Promise((resolve, reject) => {
+        const transaction = db.transaction(["photos"], "readwrite");
+        const store = transaction.objectStore("photos");
+        const request = store.add(photoObj);
+        request.onsuccess = () => resolve();
+        request.onerror = reject;
+      });
+    }
+
+    // --- Modal Viewer & Single Image Actions ---
+    function openSingleImageModal(photo) {
+      activeModalImgId = photo.id;
+      const modal = document.getElementById('imageModal');
+      const modalImg = document.getElementById('modalImg');
+      const meta = document.getElementById('modalMetaInfo');
+
+      modalImg.src = photo.dataUrl;
+      currentZoomScale = 1;
+      modalImg.style.transform = `scale(${currentZoomScale})`;
+      meta.innerText = `${currentBranch} • ${photo.capturedDate}`;
+
+      modal.classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('imageModal').classList.add('hidden');
+      activeModalImgId = null;
+    }
+
+    function zoomModalImage(delta) {
+      currentZoomScale = Math.max(0.5, Math.min(3, currentZoomScale + delta));
+      document.getElementById('modalImg').style.transform = `scale(${currentZoomScale})`;
+    }
+
+    async function deleteSingleImage() {
+      if (!confirm("Bạn có chắc chắn muốn xóa hình ảnh này không?")) return;
+
+      await deletePhotoFromDB(activeModalImgId);
+      closeModal();
+      renderCalendar();
+      loadImagesForCurrentView();
+    }
+
+    async function shareSingleImage() {
+      const photo = await getPhotoById(activeModalImgId);
+      if (!photo) return;
+
+      if (navigator.share) {
+        const blob = await (await fetch(photo.dataUrl)).blob();
+        const file = new File([blob], `ZemaR_${photo.folder}_${photo.date}.jpg`, { type: 'image/jpeg' });
+        try {
+          await navigator.share({
+            title: `Zema R - ${currentBranch}`,
+            text: `Hình ảnh từ ${currentBranch} (${photo.capturedDate})`,
+            files: [file]
+          });
+        } catch (e) {}
+      } else {
+        alert("Trình duyệt không hỗ trợ Web Share API trực tiếp. Vui lòng nhấn giữ ảnh để tải/chia sẻ.");
+      }
+    }
+
+    // --- Batch Selection Mode ---
+    function toggleBatchSelect(photoId) {
+      isBatchMode = true;
+      if (selectedImageIds.has(photoId)) {
+        selectedImageIds.delete(photoId);
+      } else {
+        selectedImageIds.add(photoId);
+      }
+
+      if (selectedImageIds.size === 0) {
+        exitBatchMode();
+      } else {
+        document.getElementById('batchBar').classList.remove('hidden');
+        document.getElementById('batchCount').innerText = selectedImageIds.size;
+        loadImagesForCurrentView();
+      }
+    }
+
+    function exitBatchMode() {
+      isBatchMode = false;
+      selectedImageIds.clear();
+      document.getElementById('batchBar').classList.add('hidden');
+      loadImagesForCurrentView();
+    }
+
+    async function batchDelete() {
+      if (!confirm(`Xác nhận xóa ${selectedImageIds.size} hình ảnh đã chọn?`)) return;
+
+      for (let id of selectedImageIds) {
+        await deletePhotoFromDB(id);
+      }
+      exitBatchMode();
+      renderCalendar();
+    }
+
+    async function batchShare() {
+      const filesArr = [];
+      for (let id of selectedImageIds) {
+        const photo = await getPhotoById(id);
+        if (photo) {
+          const blob = await (await fetch(photo.dataUrl)).blob();
+          filesArr.push(new File([blob], `ZemaR_${id}.jpg`, { type: 'image/jpeg' }));
+        }
+      }
+
+      if (navigator.share && filesArr.length > 0) {
+        try {
+          await navigator.share({
+            title: `Zema R Multi Share`,
+            files: filesArr
+          });
+        } catch (e) {}
+      } else {
+        alert("Tính năng chia sẻ nhiều ảnh chưa được trình duyệt hỗ trợ trực tiếp.");
+      }
+    }
+
+    function deletePhotoFromDB(id) {
+      return new Promise((resolve) => {
+        const transaction = db.transaction(["photos"], "readwrite");
+        const store = transaction.objectStore("photos");
+        store.delete(id).onsuccess = () => resolve();
+      });
+    }
+
+    function getPhotoById(id) {
+      return new Promise((resolve) => {
+        const transaction = db.transaction(["photos"], "readonly");
+        const store = transaction.objectStore("photos");
+        store.get(id).onsuccess = (e) => resolve(e.target.result);
+      });
+    }
+
+    function showLoading(show, text) {
+      const overlay = document.getElementById('loadingOverlay');
+      if (show) {
+        document.getElementById('loadingText').innerText = text || "Đang xử lý...";
+        overlay.classList.remove('hidden');
+      } else {
+        overlay.classList.add('hidden');
+      }
+    }
+  </script>
+</body>
+</html>
