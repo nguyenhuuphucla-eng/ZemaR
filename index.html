@@ -80,11 +80,11 @@
   <div id="ocrLoadingModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 p-5 rounded-2xl flex flex-col items-center gap-3 text-center shadow-2xl max-w-xs w-full">
       <div class="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-      <p id="ocrLoadingText" class="font-bold text-pink-400 text-xs">Đang đồng bộ dữ liệu Cloud...</p>
+      <p id="ocrLoadingText" class="font-bold text-pink-400 text-xs">Đang nén & đẩy ảnh lên Cloud Google...</p>
     </div>
   </div>
 
-  <!-- Header chọn Chi Nhánh (To Phóng Lớn) -->
+  <!-- Header chọn Chi Nhánh -->
   <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-4 shadow-xl">
     <div class="max-w-md mx-auto flex items-center justify-between gap-3">
       <div class="flex items-center gap-3">
@@ -231,12 +231,12 @@
     // ==========================================
     const firebaseConfig = {
       apiKey: "AIzaSyATkvZNedy1vDx-yupT0IFUrImit-jTYkk",
-      authDomain: "zemar-2b24e.firebaseapp.com",
-      projectId: "zemar-2b24e",
-      storageBucket: "zemar-2b24e.firebasestorage.app",
-      messagingSenderId: "901360040870",
-      appId: "1:901360040870:web:485de54f94d60a81526d67",
-      measurementId: "G-6F6EM849R8"
+  authDomain: "zemar-2b24e.firebaseapp.com",
+  projectId: "zemar-2b24e",
+  storageBucket: "zemar-2b24e.firebasestorage.app",
+  messagingSenderId: "901360040870",
+  appId: "1:901360040870:web:485de54f94d60a81526d67",
+  measurementId: "G-6F6EM849R8"
     };
 
     // Khởi tạo Firebase Cloud
@@ -343,14 +343,18 @@
       monthYearElem.innerText = `${monthNames[calendarMonth]} / ${calendarYear}`;
 
       const datesWithPhotos = new Set();
-      const snapshot = await firestore.collection("photos")
-        .where("branch", "==", currentBranch)
-        .get();
+      try {
+        const snapshot = await firestore.collection("photos")
+          .where("branch", "==", currentBranch)
+          .get();
 
-      snapshot.forEach(doc => {
-        const d = doc.data().date;
-        if (d) datesWithPhotos.add(d);
-      });
+        snapshot.forEach(doc => {
+          const d = doc.data().date;
+          if (d) datesWithPhotos.add(d);
+        });
+      } catch (err) {
+        console.error("Lỗi tải lịch:", err);
+      }
 
       const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
       const totalDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
@@ -455,6 +459,9 @@
             grid.appendChild(card);
           });
           lucide.createIcons();
+        }, (error) => {
+          console.error("Lỗi lắng nghe dữ liệu Cloud:", error);
+          alert("❌ Không thể kết nối Cloud! Kiểm tra lại quyền Firestore Rules.");
         });
     }
 
@@ -494,79 +501,95 @@
       } catch (err) { return "may"; }
     }
 
+    // HÀM CHỤP & ĐẨY CLOUD ĐÃ KHẮC PHỤC HOÀN TOÀN LỖI ĐỨNG TẢI
     async function handleImageCapture(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const captureBranch = currentBranch;
       const loadingModal = document.getElementById('ocrLoadingModal');
-      document.getElementById('ocrLoadingText').innerText = "Đang đẩy ảnh lên Cloud Google...";
+      document.getElementById('ocrLoadingText').innerText = "Đang nén & đẩy ảnh lên Cloud Google...";
       loadingModal.classList.remove('hidden');
 
       const reader = new FileReader();
       reader.onload = async (e) => {
-        const rawDataUrl = e.target.result;
-        const now = new Date();
-        const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
-        const dateKey = now.toISOString().split('T')[0];
+        try {
+          const rawDataUrl = e.target.result;
+          const now = new Date();
+          const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+          const dateKey = now.toISOString().split('T')[0];
 
-        const detectedFolder = await autoDetectFolderWithOCR(rawDataUrl);
-        const stampedDataUrl = await addWatermarkToImage(rawDataUrl, captureBranch, dateFormatted);
+          const detectedFolder = await autoDetectFolderWithOCR(rawDataUrl);
+          const stampedDataUrl = await addWatermarkToImage(rawDataUrl, captureBranch, dateFormatted);
 
-        await firestore.collection("photos").add({
-          branch: captureBranch,
-          date: dateKey,
-          folder: detectedFolder,
-          capturedDate: dateFormatted,
-          dataUrl: stampedDataUrl,
-          createdAt: firebase.firestore.FieldValue.serverTimestamp()
-        });
+          await firestore.collection("photos").add({
+            branch: captureBranch,
+            date: dateKey,
+            folder: detectedFolder,
+            capturedDate: dateFormatted,
+            dataUrl: stampedDataUrl,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
 
-        loadingModal.classList.add('hidden');
-        selectedDate = dateKey;
-        switchFolder(detectedFolder);
-        renderCalendar();
+          selectedDate = dateKey;
+          switchFolder(detectedFolder);
+          renderCalendar();
+        } catch (err) {
+          console.error("Lỗi đẩy Cloud:", err);
+          alert("❌ Không thể đẩy ảnh lên Cloud!\nLỗi: " + err.message);
+        } finally {
+          loadingModal.classList.add('hidden');
+          event.target.value = "";
+        }
       };
 
       reader.readAsDataURL(file);
-      event.target.value = "";
     }
 
+    // HÀM NÉN ẢNH CHUẨN ĐỂ KHÔNG BỊ VƯỢT QUÁ GIỚI HẠN DUNG LƯỢNG FIRESTORE
     function addWatermarkToImage(dataUrl, branchName, dateStr) {
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
+          
+          const MAX_WIDTH = 1000;
+          let scale = 1;
+          if (img.width > MAX_WIDTH) {
+            scale = MAX_WIDTH / img.width;
+          }
+          
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0);
+          
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-          const barHeight = Math.max(60, Math.round(img.height * 0.1));
-          const gradient = ctx.createLinearGradient(0, img.height - barHeight, 0, img.height);
+          const barHeight = Math.max(50, Math.round(canvas.height * 0.1));
+          const gradient = ctx.createLinearGradient(0, canvas.height - barHeight, 0, canvas.height);
           gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
           gradient.addColorStop(1, 'rgba(0, 0, 0, 0.9)');
           ctx.fillStyle = gradient;
-          ctx.fillRect(0, img.height - barHeight, img.width, barHeight);
+          ctx.fillRect(0, canvas.height - barHeight, canvas.width, barHeight);
 
-          const fontSizeMain = Math.max(20, Math.round(img.width * 0.04));
-          const fontSizeSub = Math.max(14, Math.round(img.width * 0.028));
-          const marginX = Math.round(img.width * 0.03);
+          const fontSizeMain = Math.max(18, Math.round(canvas.width * 0.04));
+          const fontSizeSub = Math.max(12, Math.round(canvas.width * 0.028));
+          const marginX = Math.round(canvas.width * 0.03);
 
           ctx.fillStyle = '#FFFFFF';
           ctx.font = `bold ${fontSizeMain}px -apple-system, BlinkMacSystemFont, Arial`;
-          ctx.fillText(branchName, marginX, img.height - (fontSizeSub * 2.3));
+          ctx.fillText(branchName, marginX, canvas.height - (fontSizeSub * 2.3));
 
           ctx.fillStyle = '#FFFFFF';
           ctx.font = `${fontSizeSub}px -apple-system, BlinkMacSystemFont, Arial`;
-          ctx.fillText(`${dateStr} `, marginX, img.height - (fontSizeSub * 0.8));
+          ctx.fillText(`${dateStr} `, marginX, canvas.height - (fontSizeSub * 0.8));
 
           const dateWidth = ctx.measureText(`${dateStr} `).width;
           ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
           ctx.font = `italic ${fontSizeSub}px -apple-system, BlinkMacSystemFont, Arial`;
-          ctx.fillText('@ Nguyễn Hữu Phúc', marginX + dateWidth, img.height - (fontSizeSub * 0.8));
+          ctx.fillText('@ Nguyễn Hữu Phúc', marginX + dateWidth, canvas.height - (fontSizeSub * 0.8));
 
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
         };
         img.src = dataUrl;
       });
