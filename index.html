@@ -11,9 +11,10 @@
   <meta name="apple-mobile-web-app-title" content="Zema R">
   <link rel="apple-touch-icon" href="https://img.icons8.com/color/512/z.png">
 
-  <!-- Tailwind CSS & Lucide Icons -->
+  <!-- Tailwind CSS, Lucide Icons & Tesseract OCR -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
   <style>
     * {
@@ -34,7 +35,7 @@
     }
     img {
       -webkit-user-drag: none;
-      pointer-events: none; /* Khống chế tuyệt đối vệt xanh/menu copy khi nhấn giữ */
+      pointer-events: none;
     }
     .calendar-day {
       aspect-ratio: 1;
@@ -76,6 +77,14 @@
   </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between pb-10">
+
+  <!-- Màn hình chờ khi đang phân loại ảnh -->
+  <div id="ocrLoadingModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 p-5 rounded-2xl flex flex-col items-center gap-3 text-center shadow-2xl max-w-xs w-full">
+      <div class="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+      <p class="font-bold text-pink-400 text-xs">Đang lọc tự động Hóa Đơn / Phiếu Sửa...</p>
+    </div>
+  </div>
 
   <!-- Header chọn Chi Nhánh -->
   <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 shadow-md">
@@ -235,6 +244,7 @@
     let calendarYear = new Date().getFullYear();
     let currentFolder = "may";
     let db = null;
+    let ocrWorker = null;
 
     let isCalendarOpen = false;
     let currentFolderPhotosCache = [];
@@ -250,11 +260,23 @@
       await autoSelectLatestDate();
       await renderCalendar();
       loadImagesForCurrentView();
+      initOCRWorker(); // Khởi tạo OCR ngầm
     });
+
+    // Khởi tạo máy quét OCR tiếng Việt ngầm từ lúc mở ứng dụng
+    async function initOCRWorker() {
+      try {
+        if (typeof Tesseract !== 'undefined') {
+          ocrWorker = await Tesseract.createWorker('vie');
+        }
+      } catch (e) {
+        console.log("Khởi tạo OCR lỗi:", e);
+      }
+    }
 
     function initIndexedDB() {
       return new Promise((resolve) => {
-        const request = indexedDB.open("ZemaR_AutoFilterDB_v10", 10);
+        const request = indexedDB.open("ZemaR_AutoFilterDB_v11", 11);
         request.onupgradeneeded = (e) => {
           db = e.target.result;
           if (!db.objectStoreNames.contains("photos")) {
@@ -444,7 +466,7 @@
     async function loadImagesForCurrentView() {
       const grid = document.getElementById('imageGrid');
       const emptyState = document.getElementById('emptyState');
-      grid.innerHTML = ""; // Xóa sạch để chống trùng 2 thumbnail
+      grid.innerHTML = "";
 
       const allPhotosForBranchAndDay = await getPhotosByBranchAndDate(currentBranch, selectedDate);
 
@@ -469,7 +491,7 @@
 
         const img = document.createElement('img');
         img.src = photo.dataUrl;
-        img.className = "w-full h-full object-cover pointer-events-none"; // Khóa sự kiện trên ảnh chống hiện menu copy
+        img.className = "w-full h-full object-cover pointer-events-none";
 
         const checkOverlay = document.createElement('div');
         checkOverlay.className = `absolute top-2 right-2 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${selectedImageIds.has(photo.id) ? 'bg-pink-500 border-pink-500' : 'bg-black/40'}`;
@@ -543,14 +565,74 @@
       document.getElementById('cameraInput').click();
     }
 
-    // NHẬN DIỆN THỦ CÔNG / TỰ ĐỘNG SIÊU NHANH BẰNG TỶ LỆ CẤU TRÚC LỰA CHỌN MẶC ĐỊNH LƯU VÀO FOLDER ĐANG CHỌN
+    function removeVietnameseTones(str) {
+      return str.normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+        .toUpperCase();
+    }
+
+    // CẮT 30% ĐẦU TRANG NƠI CHỨA TIÊU ĐỀ ĐỂ PHÂN LOẠI
+    function cropTopHeaderForOCR(dataUrl, maxWidth) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const cropHeight = img.height * 0.30;
+          const scale = maxWidth / img.width;
+          canvas.width = maxWidth;
+          canvas.height = cropHeight * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, img.width, cropHeight, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.src = dataUrl;
+      });
+    }
+
+    // THUẬT TOÁN QUÉT CHỮ TỰ ĐỘNG PHÂN LOẠI HÓA ĐƠN / PHIẾU SỬA
+    async function autoDetectFolderWithOCR(dataUrl) {
+      try {
+        const croppedHeaderUrl = await cropTopHeaderForOCR(dataUrl, 500);
+
+        if (!ocrWorker) {
+          ocrWorker = await Tesseract.createWorker('vie');
+        }
+
+        const ret = await ocrWorker.recognize(croppedHeaderUrl);
+        const rawText = ret.data.text || "";
+        const cleanText = removeVietnameseTones(rawText);
+
+        const isHoaDon = cleanText.includes("HOA DON") ||
+                         cleanText.includes("BAN LE") ||
+                         cleanText.includes("THANH TIEN") ||
+                         cleanText.includes("DON VI") ||
+                         cleanText.includes("CONG:");
+
+        const isPhieuSua = cleanText.includes("PHIEU") ||
+                           cleanText.includes("SUA CHUA") ||
+                           cleanText.includes("ZEMA") ||
+                           cleanText.includes("DE XUAT") ||
+                           cleanText.includes("TAI SAN");
+
+        if (isHoaDon) return "hoa_don";
+        else if (isPhieuSua) return "phieu_sua";
+        else return "may";
+      } catch (err) {
+        console.error("Lỗi OCR:", err);
+        return currentFolder;
+      }
+    }
+
     async function handleImageCapture(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const captureBranch = currentBranch;
-      const targetFolder = currentFolder; // Lưu trực tiếp vào tab đang chọn lập tức trong 0.1s
       const reader = new FileReader();
+
+      const loadingModal = document.getElementById('ocrLoadingModal');
+      loadingModal.classList.remove('hidden');
 
       reader.onload = async (e) => {
         const rawDataUrl = e.target.result;
@@ -558,13 +640,14 @@
         const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
         const dateKey = now.toISOString().split('T')[0];
 
-        // Đóng dấu Watermark Chi nhánh & Ngày chụp
+        // Tự động phân loại Hóa đơn / Phiếu sửa / Máy
+        const detectedFolder = await autoDetectFolderWithOCR(rawDataUrl);
         const stampedDataUrl = await addWatermarkToImage(rawDataUrl, captureBranch, dateFormatted);
 
         const photoObj = {
           branch: captureBranch,
           date: dateKey,
-          folder: targetFolder,
+          folder: detectedFolder,
           capturedDate: dateFormatted,
           dataUrl: stampedDataUrl
         };
@@ -572,9 +655,10 @@
         const tx = db.transaction(["photos"], "readwrite");
         tx.objectStore("photos").add(photoObj);
         tx.oncomplete = () => {
+          loadingModal.classList.add('hidden');
           selectedDate = dateKey;
+          switchFolder(detectedFolder); // Nhảy sang đúng thư mục được lọc
           renderCalendar();
-          loadImagesForCurrentView(); // Cập nhật ngay lưới ảnh
         };
       };
 
@@ -659,7 +743,20 @@
       };
     }
 
-    // LƯU 1 ẢNH VÀO ALBUM MÁY (SỬ DỤNG SHARE SHEET LƯU 1 CHẠM TỨC THÌ)
+    // CHUYỂN ĐỔI CHUỖI BASE64 SANG FILE TỨC THÌ TRONG 0.001 GIÂY
+    function dataURLtoFile(dataurl, filename) {
+      const arr = dataurl.split(',');
+      const mime = arr[0].match(/:(.*?);/)[1];
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new File([u8arr], filename, { type: mime });
+    }
+
+    // LƯU 1 ẢNH VÀO ALBUM MÁY TỨC THÌ
     async function saveSingleToPhotos() {
       if (!activeModalImgId) return;
       const tx = db.transaction(["photos"], "readonly");
@@ -667,14 +764,15 @@
       req.onsuccess = async () => {
         const photo = req.result;
         if (photo) {
-          const blob = await (await fetch(photo.dataUrl)).blob();
-          const file = new File([blob], `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}.jpg`, { type: 'image/jpeg' });
+          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
+          const file = dataURLtoFile(photo.dataUrl, filename);
+
           if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
             try { await navigator.share({ files: [file] }); } catch (e) {}
           } else {
             const a = document.createElement('a');
-            a.href = photo.dataUrl;
-            a.download = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}.jpg`;
+            a.href = URL.createObjectURL(file);
+            a.download = filename;
             a.click();
           }
         }
@@ -739,7 +837,7 @@
       loadImagesForCurrentView();
     }
 
-    // LƯU NHIỀU ẢNH VÀO ALBUM MÁY
+    // LƯU NHIỀU ẢNH CÙNG LÚC VÀO ALBUM MÁY (SỬ DỤNG FILE ĐƯỢC CHUYỂN ĐỔI TỨC THÌ)
     async function batchSaveToPhotos() {
       if (selectedImageIds.size === 0) return;
       const filesArr = [];
@@ -748,25 +846,33 @@
 
       for (let id of selectedImageIds) {
         const photo = await new Promise(res => { store.get(id).onsuccess = e => res(e.target.result); });
-        if (photo) {
-          const blob = await (await fetch(photo.dataUrl)).blob();
-          filesArr.push(new File([blob], `ZemaR_${photo.branch}_${id}.jpg`, { type: 'image/jpeg' }));
+        if (photo && photo.dataUrl) {
+          const filename = `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}_${photo.id}.jpg`;
+          filesArr.push(dataURLtoFile(photo.dataUrl, filename));
         }
       }
 
+      if (filesArr.length === 0) return;
+
+      // Gọi lệnh Share hệ thống trực tiếp không qua thời gian chờ
       if (navigator.share && navigator.canShare && navigator.canShare({ files: filesArr })) {
-        try { await navigator.share({ files: filesArr }); } catch (e) {}
+        try {
+          await navigator.share({ files: filesArr });
+        } catch (e) {
+          console.log("Đã hủy lưu ảnh");
+        }
       } else {
-        let delay = 0;
-        filesArr.forEach(file => {
-          setTimeout(() => {
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(file);
-            a.download = file.name;
-            a.click();
-          }, delay);
-          delay += 250;
-        });
+        // Tải từng ảnh về nếu trình duyệt không hỗ trợ Share nhiều file cùng lúc
+        for (let i = 0; i < filesArr.length; i++) {
+          const file = filesArr[i];
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(file);
+          a.download = file.name;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          await new Promise(r => setTimeout(r, 250));
+        }
       }
     }
 
