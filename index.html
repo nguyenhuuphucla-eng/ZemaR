@@ -140,20 +140,24 @@
 
     <!-- Thư mục & Nút Chụp -->
     <section class="space-y-3">
-      <div class="flex items-center justify-between gap-2">
-        <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800 flex-1">
-          <button onclick="switchFolder('may')" id="tab-may" class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all text-pink-400 bg-slate-800">
-            Hình Máy <span id="count-may" class="text-[10px] opacity-75">(0)</span>
+      <div class="flex items-center justify-between gap-1.5">
+        <!-- Thanh 4 Tab: Tất Cả | Hình Máy | Phiếu Sửa | Hóa Đơn -->
+        <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800 flex-1 overflow-x-auto gap-1">
+          <button onclick="switchFolder('tat_ca')" id="tab-tat_ca" class="flex-1 min-w-[55px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-pink-400 bg-slate-800">
+            Tất Cả <span id="count-tat_ca" class="text-[9px] opacity-75">(0)</span>
           </button>
-          <button onclick="switchFolder('phieu_sua')" id="tab-phieu_sua" class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-400">
-            Phiếu Sửa <span id="count-phieu_sua" class="text-[10px] opacity-75">(0)</span>
+          <button onclick="switchFolder('may')" id="tab-may" class="flex-1 min-w-[55px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-slate-400">
+            Máy <span id="count-may" class="text-[9px] opacity-75">(0)</span>
           </button>
-          <button onclick="switchFolder('hoa_don')" id="tab-hoa_don" class="flex-1 py-1.5 text-xs font-bold rounded-lg transition-all text-slate-400">
-            Hóa Đơn <span id="count-hoa_don" class="text-[10px] opacity-75">(0)</span>
+          <button onclick="switchFolder('phieu_sua')" id="tab-phieu_sua" class="flex-1 min-w-[55px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-slate-400">
+            Phiếu <span id="count-phieu_sua" class="text-[9px] opacity-75">(0)</span>
+          </button>
+          <button onclick="switchFolder('hoa_don')" id="tab-hoa_don" class="flex-1 min-w-[55px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-slate-400">
+            Hóa Đơn <span id="count-hoa_don" class="text-[9px] opacity-75">(0)</span>
           </button>
         </div>
 
-        <button onclick="triggerCameraInput()" class="bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold px-3.5 py-2.5 rounded-xl shadow-lg flex items-center gap-1 text-xs active:scale-95 transition-transform">
+        <button onclick="triggerCameraInput()" class="bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold px-3 py-2.5 rounded-xl shadow-lg flex items-center gap-1 text-xs active:scale-95 transition-transform shrink-0">
           <i data-lucide="camera" class="w-4 h-4"></i> Chụp
         </button>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageCapture(event)">
@@ -185,7 +189,7 @@
       <div id="imageGrid" class="grid grid-cols-2 gap-3"></div>
       <div id="emptyState" class="hidden text-center py-12 text-slate-500 space-y-2">
         <i data-lucide="image-off" class="w-10 h-10 mx-auto text-slate-600"></i>
-        <p class="text-xs font-medium">Không có ảnh nào thuộc thư mục này</p>
+        <p class="text-xs font-medium">Không có ảnh nào thuộc mục này</p>
       </div>
     </section>
 
@@ -242,9 +246,10 @@
     let selectedDate = new Date().toISOString().split('T')[0];
     let calendarMonth = new Date().getMonth();
     let calendarYear = new Date().getFullYear();
-    let currentFolder = "may";
+    let currentFolder = "tat_ca"; // Mặc định hiển thị Tất Cả ảnh khi mở ứng dụng
     let db = null;
     let ocrWorker = null;
+    let currentRenderId = 0; // Khóa chống trùng lặp Thumbnail
 
     let isCalendarOpen = false;
     let currentFolderPhotosCache = [];
@@ -260,23 +265,22 @@
       await autoSelectLatestDate();
       await renderCalendar();
       loadImagesForCurrentView();
-      initOCRWorker(); // Khởi tạo OCR ngầm
+      initOCRWorker();
     });
 
-    // Khởi tạo máy quét OCR tiếng Việt ngầm từ lúc mở ứng dụng
     async function initOCRWorker() {
       try {
         if (typeof Tesseract !== 'undefined') {
           ocrWorker = await Tesseract.createWorker('vie');
         }
       } catch (e) {
-        console.log("Khởi tạo OCR lỗi:", e);
+        console.log("OCR Error:", e);
       }
     }
 
     function initIndexedDB() {
       return new Promise((resolve) => {
-        const request = indexedDB.open("ZemaR_AutoFilterDB_v11", 11);
+        const request = indexedDB.open("ZemaR_AutoFilterDB_v12", 12);
         request.onupgradeneeded = (e) => {
           db = e.target.result;
           if (!db.objectStoreNames.contains("photos")) {
@@ -453,28 +457,43 @@
 
     function switchFolder(folder) {
       currentFolder = folder;
-      ['may', 'phieu_sua', 'hoa_don'].forEach(f => {
+      ['tat_ca', 'may', 'phieu_sua', 'hoa_don'].forEach(f => {
         const btn = document.getElementById(`tab-${f}`);
-        btn.className = (f === folder)
-          ? "flex-1 py-1.5 text-xs font-bold rounded-lg text-pink-400 bg-slate-800"
-          : "flex-1 py-1.5 text-xs font-bold rounded-lg text-slate-400";
+        if (btn) {
+          btn.className = (f === folder)
+            ? "flex-1 min-w-[55px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-pink-400 bg-slate-800"
+            : "flex-1 min-w-[55px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-slate-400";
+        }
       });
       exitBatchMode();
       loadImagesForCurrentView();
     }
 
+    // XỬ LÝ VẼ LƯỚI ẢNH CHỐNG NHÂN ĐÔI THUMBNAIL
     async function loadImagesForCurrentView() {
+      const renderId = ++currentRenderId; // Tạo mã khóa thứ tự vẽ
       const grid = document.getElementById('imageGrid');
       const emptyState = document.getElementById('emptyState');
-      grid.innerHTML = "";
 
       const allPhotosForBranchAndDay = await getPhotosByBranchAndDate(currentBranch, selectedDate);
 
+      // Nếu có lệnh vẽ mới hơn đang chờ, hủy bỏ lệnh cũ để chống trùng 2 thumbnail
+      if (renderId !== currentRenderId) return;
+
+      grid.innerHTML = ""; // Xóa sạch giao diện trước khi thêm ảnh mới
+
+      // Cập nhật số lượng đếm trên từng Tab
+      document.getElementById('count-tat_ca').innerText = `(${allPhotosForBranchAndDay.length})`;
       document.getElementById('count-may').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'may').length})`;
       document.getElementById('count-phieu_sua').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'phieu_sua').length})`;
       document.getElementById('count-hoa_don').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'hoa_don').length})`;
 
-      currentFolderPhotosCache = allPhotosForBranchAndDay.filter(p => p.folder === currentFolder);
+      // Lọc danh sách ảnh theo tab đang chọn
+      if (currentFolder === 'tat_ca') {
+        currentFolderPhotosCache = allPhotosForBranchAndDay;
+      } else {
+        currentFolderPhotosCache = allPhotosForBranchAndDay.filter(p => p.folder === currentFolder);
+      }
 
       if (currentFolderPhotosCache.length === 0) {
         emptyState.classList.remove('hidden');
@@ -572,7 +591,6 @@
         .toUpperCase();
     }
 
-    // CẮT 30% ĐẦU TRANG NƠI CHỨA TIÊU ĐỀ ĐỂ PHÂN LOẠI
     function cropTopHeaderForOCR(dataUrl, maxWidth) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -590,7 +608,6 @@
       });
     }
 
-    // THUẬT TOÁN QUÉT CHỮ TỰ ĐỘNG PHÂN LOẠI HÓA ĐƠN / PHIẾU SỬA
     async function autoDetectFolderWithOCR(dataUrl) {
       try {
         const croppedHeaderUrl = await cropTopHeaderForOCR(dataUrl, 500);
@@ -620,7 +637,7 @@
         else return "may";
       } catch (err) {
         console.error("Lỗi OCR:", err);
-        return currentFolder;
+        return "may";
       }
     }
 
@@ -640,7 +657,6 @@
         const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
         const dateKey = now.toISOString().split('T')[0];
 
-        // Tự động phân loại Hóa đơn / Phiếu sửa / Máy
         const detectedFolder = await autoDetectFolderWithOCR(rawDataUrl);
         const stampedDataUrl = await addWatermarkToImage(rawDataUrl, captureBranch, dateFormatted);
 
@@ -657,7 +673,7 @@
         tx.oncomplete = () => {
           loadingModal.classList.add('hidden');
           selectedDate = dateKey;
-          switchFolder(detectedFolder); // Nhảy sang đúng thư mục được lọc
+          switchFolder(detectedFolder);
           renderCalendar();
         };
       };
@@ -743,7 +759,6 @@
       };
     }
 
-    // CHUYỂN ĐỔI CHUỖI BASE64 SANG FILE TỨC THÌ TRONG 0.001 GIÂY
     function dataURLtoFile(dataurl, filename) {
       const arr = dataurl.split(',');
       const mime = arr[0].match(/:(.*?);/)[1];
@@ -756,7 +771,6 @@
       return new File([u8arr], filename, { type: mime });
     }
 
-    // LƯU 1 ẢNH VÀO ALBUM MÁY TỨC THÌ
     async function saveSingleToPhotos() {
       if (!activeModalImgId) return;
       const tx = db.transaction(["photos"], "readonly");
@@ -837,7 +851,6 @@
       loadImagesForCurrentView();
     }
 
-    // LƯU NHIỀU ẢNH CÙNG LÚC VÀO ALBUM MÁY (SỬ DỤNG FILE ĐƯỢC CHUYỂN ĐỔI TỨC THÌ)
     async function batchSaveToPhotos() {
       if (selectedImageIds.size === 0) return;
       const filesArr = [];
@@ -854,7 +867,6 @@
 
       if (filesArr.length === 0) return;
 
-      // Gọi lệnh Share hệ thống trực tiếp không qua thời gian chờ
       if (navigator.share && navigator.canShare && navigator.canShare({ files: filesArr })) {
         try {
           await navigator.share({ files: filesArr });
@@ -862,7 +874,6 @@
           console.log("Đã hủy lưu ảnh");
         }
       } else {
-        // Tải từng ảnh về nếu trình duyệt không hỗ trợ Share nhiều file cùng lúc
         for (let i = 0; i < filesArr.length; i++) {
           const file = filesArr[i];
           const a = document.createElement('a');
