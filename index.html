@@ -39,7 +39,7 @@
       cursor: pointer;
     }
     .has-photos {
-      background-color: #10b981 !important; /* Màu xanh khi có ảnh */
+      background-color: #10b981 !important; /* Xanh khi có ảnh */
       color: #ffffff !important;
       box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     }
@@ -68,7 +68,7 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between pb-10">
 
-  <!-- Top Bar: Chọn chi nhánh & Cài đặt Pass 0000 -->
+  <!-- Header chọn Chi Nhánh -->
   <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 shadow-md">
     <div class="max-w-md mx-auto flex items-center justify-between gap-3">
       <div class="flex items-center gap-2.5">
@@ -89,10 +89,10 @@
     </div>
   </header>
 
-  <!-- Nội dung chính -->
+  <!-- Container Chính -->
   <main class="max-w-md mx-auto w-full flex-1 px-4 py-3 space-y-4">
 
-    <!-- Lịch chọn ngày -->
+    <!-- Lịch Ngày -->
     <section class="bg-slate-900/80 rounded-2xl p-3.5 border border-slate-800 shadow-xl">
       <div class="flex justify-between items-center mb-3 px-1">
         <button onclick="changeMonth(-1)" class="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400"><i data-lucide="chevron-left" class="w-5 h-5"></i></button>
@@ -107,7 +107,7 @@
       <div id="calendarDays" class="grid grid-cols-7 gap-1.5"></div>
     </section>
 
-    <!-- Thư mục & Nút Chụp Ảnh Tốc Độ Cao -->
+    <!-- Thư mục & Nút Chụp -->
     <section class="space-y-3">
       <div class="flex items-center justify-between gap-2">
         <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800 flex-1">
@@ -122,14 +122,13 @@
           </button>
         </div>
 
-        <!-- Chụp / Tải ảnh lên -->
         <button onclick="triggerCameraInput()" class="bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold px-3.5 py-2.5 rounded-xl shadow-lg flex items-center gap-1 text-xs active:scale-95 transition-transform">
           <i data-lucide="camera" class="w-4 h-4"></i> Chụp
         </button>
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageCapture(event)">
       </div>
 
-      <!-- Thanh công cụ chọn nhiều (Batch Mode) -->
+      <!-- Thanh chọn nhiều -->
       <div id="batchBar" class="hidden bg-pink-950/80 border border-pink-500/40 rounded-xl p-2.5 flex items-center justify-between">
         <span class="text-xs font-semibold text-pink-200">Đã chọn <b id="batchCount">0</b> ảnh</span>
         <div class="flex gap-2">
@@ -144,30 +143,26 @@
       </div>
     </section>
 
-    <!-- Danh sách Ảnh -->
+    <!-- Lưới Ảnh -->
     <section>
       <div id="imageGrid" class="grid grid-cols-2 gap-3"></div>
       <div id="emptyState" class="hidden text-center py-12 text-slate-500 space-y-2">
         <i data-lucide="image-off" class="w-10 h-10 mx-auto text-slate-600"></i>
-        <p class="text-xs font-medium">Chưa có ảnh trong mục này</p>
+        <p class="text-xs font-medium">Không có ảnh nào thuộc chi nhánh này</p>
       </div>
     </section>
 
   </main>
 
-  <!-- Copyright Footer -->
+  <!-- Footer Copyright -->
   <footer class="mt-8 text-center text-[11px] text-slate-500 py-3 border-t border-slate-900">
     <p class="font-medium text-slate-400">© Copyright Nguyễn Hữu Phúc</p>
     <p class="text-[10px] text-slate-500 mt-0.5">Tel: 0908893082</p>
   </footer>
 
-  <!-- Viewer Xem Ảnh Full Màn Hình -->
+  <!-- Viewer Ảnh Phóng To -->
   <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4">
-    <div class="flex justify-between items-center text-white z-10">
-      <div class="text-left">
-        <p id="modalBranch" class="text-xs font-bold text-pink-400">---</p>
-        <p id="modalDate" class="text-[10px] text-slate-300">--- <span class="italic text-slate-400 font-normal ml-1">@ Nguyễn Hữu Phúc</span></p>
-      </div>
+    <div class="flex justify-end items-center text-white z-10">
       <button onclick="closeModal()" class="p-2 bg-slate-800/80 rounded-full text-slate-300"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
 
@@ -220,15 +215,14 @@
       loadImagesForCurrentView();
     });
 
-    // Khởi tạo Database nhanh
     function initIndexedDB() {
       return new Promise((resolve) => {
-        const request = indexedDB.open("ZemaR_FastDB", 2);
+        const request = indexedDB.open("ZemaR_BranchDB", 3);
         request.onupgradeneeded = (e) => {
           db = e.target.result;
           if (!db.objectStoreNames.contains("photos")) {
             const store = db.createObjectStore("photos", { keyPath: "id", autoIncrement: true });
-            store.createIndex("date", "date", { unique: false });
+            store.createIndex("branch_date", ["branch", "date"], { unique: false });
           }
         };
         request.onsuccess = (e) => {
@@ -238,7 +232,6 @@
       });
     }
 
-    // Quản lý Chi nhánh
     function initBranches() {
       let savedBranches = JSON.parse(localStorage.getItem('zema_branches')) || DEFAULT_BRANCHES;
       localStorage.setItem('zema_branches', JSON.stringify(savedBranches));
@@ -254,7 +247,9 @@
     function onBranchChange() {
       currentBranch = document.getElementById('branchSelect').value;
       localStorage.setItem('zema_current_branch', currentBranch);
-      loadImagesForCurrentView(); // Đổi chi nhánh -> Mark tên chi nhánh tự đổi theo
+      exitBatchMode();
+      renderCalendar();
+      loadImagesForCurrentView(); // Đổi chi nhánh -> Lọc dữ liệu theo đúng chi nhánh mới
     }
 
     function promptAdminBranch() {
@@ -284,17 +279,18 @@
       localStorage.setItem('zema_branches', JSON.stringify(branches));
       localStorage.setItem('zema_current_branch', currentBranch);
       renderBranchDropdown(branches);
+      renderCalendar();
       loadImagesForCurrentView();
     }
 
-    // Xử lý Lịch
+    // Lịch ngày - Chỉ đếm các ngày có ảnh CỦA CHI NHÁNH ĐANG CHỌN
     async function renderCalendar() {
       const monthYearElem = document.getElementById('calendarMonthYear');
       const daysContainer = document.getElementById('calendarDays');
       const monthNames = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
       monthYearElem.innerText = `${monthNames[calendarMonth]} / ${calendarYear}`;
 
-      const datesWithPhotos = await getDatesWithPhotosInMonth(calendarYear, calendarMonth);
+      const datesWithPhotos = await getDatesWithPhotosForBranch(currentBranch, calendarYear, calendarMonth);
       const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
       const totalDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
 
@@ -321,7 +317,7 @@
       renderCalendar();
     }
 
-    function getDatesWithPhotosInMonth(year, month) {
+    function getDatesWithPhotosForBranch(branch, year, month) {
       return new Promise((resolve) => {
         const transaction = db.transaction(["photos"], "readonly");
         const store = transaction.objectStore("photos");
@@ -329,16 +325,17 @@
         store.openCursor().onsuccess = (e) => {
           const cursor = e.target.result;
           if (cursor) {
-            const date = cursor.value.date;
-            const [y, m] = date.split('-').map(Number);
-            if (y === year && m === (month + 1)) dates.add(date);
+            const item = cursor.value;
+            if (item.branch === branch) {
+              const [y, m] = item.date.split('-').map(Number);
+              if (y === year && m === (month + 1)) dates.add(item.date);
+            }
             cursor.continue();
           } else { resolve(dates); }
         };
       });
     }
 
-    // Chuyển Folder & Hiển thị
     function switchFolder(folder) {
       currentFolder = folder;
       ['may', 'phieu_sua', 'hoa_don'].forEach(f => {
@@ -355,12 +352,13 @@
       const emptyState = document.getElementById('emptyState');
       grid.innerHTML = "";
 
-      const allPhotosForDay = await getPhotosByDate(selectedDate);
-      document.getElementById('count-may').innerText = `(${allPhotosForDay.filter(p => p.folder === 'may').length})`;
-      document.getElementById('count-phieu_sua').innerText = `(${allPhotosForDay.filter(p => p.folder === 'phieu_sua').length})`;
-      document.getElementById('count-hoa_don').innerText = `(${allPhotosForDay.filter(p => p.folder === 'hoa_don').length})`;
+      const allPhotosForBranchAndDay = await getPhotosByBranchAndDate(currentBranch, selectedDate);
+      
+      document.getElementById('count-may').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'may').length})`;
+      document.getElementById('count-phieu_sua').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'phieu_sua').length})`;
+      document.getElementById('count-hoa_don').innerText = `(${allPhotosForBranchAndDay.filter(p => p.folder === 'hoa_don').length})`;
 
-      const folderPhotos = allPhotosForDay.filter(p => p.folder === currentFolder);
+      const folderPhotos = allPhotosForBranchAndDay.filter(p => p.folder === currentFolder);
 
       if (folderPhotos.length === 0) {
         emptyState.classList.remove('hidden');
@@ -379,26 +377,14 @@
         img.src = photo.dataUrl;
         img.className = "w-full h-full object-cover";
 
-        // MARK CHỮ THEO YÊU CẦU: Dòng trên Tên Chi Nhánh, Dòng dưới Ngày + @ Nguyễn Hữu Phúc in nghiêng
-        const watermark = document.createElement('div');
-        watermark.className = "absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent p-2 text-left";
-        watermark.innerHTML = `
-          <p class="text-[11px] font-bold text-pink-400 truncate leading-tight">${currentBranch}</p>
-          <p class="text-[9px] text-slate-300 font-medium leading-tight mt-0.5">
-            ${photo.capturedDate} <span class="text-slate-400 italic font-normal ml-0.5">@ Nguyễn Hữu Phúc</span>
-          </p>
-        `;
-
         const checkOverlay = document.createElement('div');
         checkOverlay.className = `absolute top-2 right-2 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${selectedImageIds.has(photo.id) ? 'bg-pink-500 border-pink-500' : 'bg-black/40'}`;
         if (selectedImageIds.has(photo.id)) checkOverlay.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-white"></i>`;
 
         imgContainer.appendChild(img);
-        imgContainer.appendChild(watermark);
         imgContainer.appendChild(checkOverlay);
         card.appendChild(imgContainer);
 
-        // Giữ lâu để chọn nhiều
         let pressTimer;
         card.addEventListener('touchstart', () => { pressTimer = setTimeout(() => toggleBatchSelect(photo.id), 400); });
         card.addEventListener('touchend', () => clearTimeout(pressTimer));
@@ -415,37 +401,48 @@
       lucide.createIcons();
     }
 
-    function getPhotosByDate(dateStr) {
+    function getPhotosByBranchAndDate(branch, dateStr) {
       return new Promise((resolve) => {
         const transaction = db.transaction(["photos"], "readonly");
         const store = transaction.objectStore("photos");
-        const index = store.index("date");
-        const request = index.getAll(dateStr);
-        request.onsuccess = () => resolve(request.result || []);
+        const result = [];
+        store.openCursor().onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            if (cursor.value.branch === branch && cursor.value.date === dateStr) {
+              result.push(cursor.value);
+            }
+            cursor.continue();
+          } else { resolve(result); }
+        };
       });
     }
 
-    // Chụp & LưuSiêu Tốc (Xử lý ngay lập tức)
     function triggerCameraInput() {
       document.getElementById('cameraInput').click();
     }
 
+    // XỬ LÝ CHỤP & IN CHỮ (WATERMARK) TRỰC TIẾP VÀO ẢNH
     async function handleImageCapture(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const reader = new FileReader();
       reader.onload = async (e) => {
-        const dataUrl = e.target.result;
+        const rawDataUrl = e.target.result;
         const now = new Date();
         const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
         const dateKey = now.toISOString().split('T')[0];
 
+        // Đóng dấu/in chữ trực tiếp vào ảnh qua Canvas
+        const stampedDataUrl = await addWatermarkToImage(rawDataUrl, currentBranch, dateFormatted);
+
         const photoObj = {
+          branch: currentBranch, // Lọc theo chi nhánh
           date: dateKey,
-          folder: currentFolder, // Lưu trực tiếp vào thư mục đang chọn
+          folder: currentFolder,
           capturedDate: dateFormatted,
-          dataUrl: dataUrl
+          dataUrl: stampedDataUrl
         };
 
         const tx = db.transaction(["photos"], "readwrite");
@@ -457,15 +454,57 @@
         };
       };
       reader.readAsDataURL(file);
-      event.target.value = ""; // Reset input
+      event.target.value = "";
     }
 
-    // Viewer & Thao tác
+    // VẼ NỔI CHỮ TRẮNG VÀO CÓC ẢNH
+    function addWatermarkToImage(dataUrl, branchName, dateStr) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+
+          // Vẽ ảnh gốc
+          ctx.drawImage(img, 0, 0);
+
+          // Lớp nền đen mờ phía dưới để chữ trắng luôn nổi bật
+          const padY = img.height * 0.08;
+          const gradient = ctx.createLinearGradient(0, img.height - padY, 0, img.height);
+          gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+          gradient.addColorStop(1, 'rgba(0, 0, 0, 0.85)');
+          ctx.fillStyle = gradient;
+          ctx.fillRect(0, img.height - padY, img.width, padY);
+
+          // Cấu hình phông chữ tỷ lệ theo kích thước ảnh
+          const fontSizeMain = Math.max(16, Math.round(img.width * 0.035));
+          const fontSizeSub = Math.max(12, Math.round(img.width * 0.026));
+
+          // Dòng 1: Tên Chi Nhánh (Chữ Trắng Đậm)
+          ctx.fillStyle = '#FFFFFF';
+          ctx.font = `bold ${fontSizeMain}px -apple-system, BlinkMacSystemFont, Arial`;
+          ctx.fillText(branchName, img.width * 0.03, img.height - (fontSizeSub * 2.2));
+
+          // Dòng 2: Ngày + @ Nguyễn Hữu Phúc (In Nghiêng)
+          ctx.font = `${fontSizeSub}px -apple-system, BlinkMacSystemFont, Arial`;
+          ctx.fillText(`${dateStr} `, img.width * 0.03, img.height - (fontSizeSub * 0.8));
+
+          const dateWidth = ctx.measureText(`${dateStr} `).width;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+          ctx.font = `italic ${fontSizeSub}px -apple-system, BlinkMacSystemFont, Arial`;
+          ctx.fillText('@ Nguyễn Hữu Phúc', (img.width * 0.03) + dateWidth, img.height - (fontSizeSub * 0.8));
+
+          resolve(canvas.toDataURL('image/jpeg', 0.92));
+        };
+        img.src = dataUrl;
+      });
+    }
+
     function openSingleImageModal(photo) {
       activeModalImgId = photo.id;
       document.getElementById('modalImg').src = photo.dataUrl;
-      document.getElementById('modalBranch').innerText = currentBranch;
-      document.getElementById('modalDate').innerHTML = `${photo.capturedDate} <span class="italic text-slate-400 font-normal ml-1">@ Nguyễn Hữu Phúc</span>`;
       currentZoomScale = 1;
       document.getElementById('modalImg').style.transform = `scale(1)`;
       document.getElementById('imageModal').classList.remove('hidden');
@@ -477,7 +516,7 @@
     }
 
     function zoomModalImage(delta) {
-      currentZoomScale = Math.max(0.5, Math.min(3, currentZoomScale + delta));
+      currentZoomScale = Math.max(0.5, Math.min(4, currentZoomScale + delta));
       document.getElementById('modalImg').style.transform = `scale(${currentZoomScale})`;
     }
 
@@ -499,13 +538,12 @@
         const photo = req.result;
         if (photo && navigator.share) {
           const blob = await (await fetch(photo.dataUrl)).blob();
-          const file = new File([blob], `ZemaR_${photo.capturedDate.replaceAll('/','-')}.jpg`, { type: 'image/jpeg' });
-          try { await navigator.share({ title: currentBranch, files: [file] }); } catch (e) {}
+          const file = new File([blob], `ZemaR_${photo.branch}_${photo.capturedDate.replaceAll('/','-')}.jpg`, { type: 'image/jpeg' });
+          try { await navigator.share({ title: photo.branch, files: [file] }); } catch (e) {}
         }
       };
     }
 
-    // Chọn nhiều (Batch Delete & Share)
     function toggleBatchSelect(id) {
       isBatchMode = true;
       if (selectedImageIds.has(id)) selectedImageIds.delete(id);
