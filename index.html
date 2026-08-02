@@ -434,7 +434,7 @@
 
           currentFolderPhotosCache.forEach(photo => {
             const card = document.createElement('div');
-            card.className = "relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg cursor-pointer select-none";
+            card.className = "relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg cursor-pointer select-none active:scale-95 transition-transform";
 
             const imgContainer = document.createElement('div');
             imgContainer.className = "relative aspect-square bg-slate-950";
@@ -451,9 +451,44 @@
             imgContainer.appendChild(checkOverlay);
             card.appendChild(imgContainer);
 
-            card.onclick = () => {
-              if (isBatchMode) toggleBatchSelect(photo.id);
-              else openSingleImageModal(photo);
+            // BỘ XỬ LÝ NHẤN GIỮ (LONG PRESS) 0.5 GIÂY ĐỂ BẬT CHỌN NHIỀU
+            let pressTimer = null;
+            let isLongPress = false;
+
+            const startPress = () => {
+              isLongPress = false;
+              pressTimer = setTimeout(() => {
+                isLongPress = true;
+                if (navigator.vibrate) navigator.vibrate(40); // Rung nhẹ báo hiệu
+                toggleBatchSelect(photo.id);
+              }, 500); // 0.5 giây
+            };
+
+            const cancelPress = () => {
+              if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+              }
+            };
+
+            card.addEventListener('touchstart', startPress, { passive: true });
+            card.addEventListener('touchend', cancelPress);
+            card.addEventListener('touchmove', cancelPress, { passive: true });
+
+            card.addEventListener('mousedown', startPress);
+            card.addEventListener('mouseup', cancelPress);
+            card.addEventListener('mouseleave', cancelPress);
+
+            card.onclick = (e) => {
+              if (isLongPress) {
+                isLongPress = false;
+                return;
+              }
+              if (isBatchMode) {
+                toggleBatchSelect(photo.id);
+              } else {
+                openSingleImageModal(photo);
+              }
             };
 
             grid.appendChild(card);
@@ -461,7 +496,6 @@
           lucide.createIcons();
         }, (error) => {
           console.error("Lỗi lắng nghe dữ liệu Cloud:", error);
-          alert("❌ Không thể kết nối Cloud! Kiểm tra lại quyền Firestore Rules.");
         });
     }
 
@@ -501,7 +535,6 @@
       } catch (err) { return "may"; }
     }
 
-    // HÀM CHỤP & ĐẨY CLOUD ĐÃ KHẮC PHỤC HOÀN TOÀN LỖI ĐỨNG TẢI
     async function handleImageCapture(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -546,7 +579,6 @@
       reader.readAsDataURL(file);
     }
 
-    // HÀM NÉN ẢNH CHUẨN ĐỂ KHÔNG BỊ VƯỢT QUÁ GIỚI HẠN DUNG LƯỢNG FIRESTORE
     function addWatermarkToImage(dataUrl, branchName, dateStr) {
       return new Promise((resolve) => {
         const img = new Image();
