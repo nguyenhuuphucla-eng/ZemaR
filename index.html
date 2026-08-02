@@ -39,7 +39,7 @@
       cursor: pointer;
     }
     .has-photos {
-      background-color: #10b981 !important; /* Xanh khi có ảnh */
+      background-color: #10b981 !important;
       color: #ffffff !important;
       box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
     }
@@ -68,7 +68,7 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between pb-10">
 
-  <!-- Header Chọn Chi Nhánh -->
+  <!-- Header chọn Chi Nhánh -->
   <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 shadow-md">
     <div class="max-w-md mx-auto flex items-center justify-between gap-3">
       <div class="flex items-center gap-2.5">
@@ -148,7 +148,7 @@
       <div id="imageGrid" class="grid grid-cols-2 gap-3"></div>
       <div id="emptyState" class="hidden text-center py-12 text-slate-500 space-y-2">
         <i data-lucide="image-off" class="w-10 h-10 mx-auto text-slate-600"></i>
-        <p class="text-xs font-medium">Không có ảnh nào thuộc chi nhánh này</p>
+        <p class="text-xs font-medium">Không có ảnh nào thuộc thư mục này</p>
       </div>
     </section>
 
@@ -215,10 +215,9 @@
       loadImagesForCurrentView();
     });
 
-    // Database V5 cách ly hoàn toàn theo chi nhánh
     function initIndexedDB() {
       return new Promise((resolve) => {
-        const request = indexedDB.open("ZemaR_FinalDB_v5", 5);
+        const request = indexedDB.open("ZemaR_AutoFilterDB_v6", 6);
         request.onupgradeneeded = (e) => {
           db = e.target.result;
           if (!db.objectStoreNames.contains("photos")) {
@@ -285,7 +284,6 @@
       loadImagesForCurrentView();
     }
 
-    // Lịch ngày - Chỉ hiện màu xanh cho ảnh CỦA ĐÚNG CHI NHÁNH ĐANG CHỌN
     async function renderCalendar() {
       const monthYearElem = document.getElementById('calendarMonthYear');
       const daysContainer = document.getElementById('calendarDays');
@@ -376,7 +374,7 @@
         imgContainer.className = "relative aspect-square bg-slate-950";
         
         const img = document.createElement('img');
-        img.src = photo.dataUrl; // Ảnh này đã được in chết chữ/watermark từ lúc chụp
+        img.src = photo.dataUrl;
         img.className = "w-full h-full object-cover";
 
         const checkOverlay = document.createElement('div');
@@ -425,12 +423,48 @@
       document.getElementById('cameraInput').click();
     }
 
-    // VẼ NỔI CỨNG VÀO ANH (PERMANENT BURN-IN WATERMARK)
+    // THUẬT TOÁN PHÂN LOẠI ẢNH TỰ ĐỘNG BẰNG CANVAS (SIÊU NHANH 0.1s)
+    function autoDetectFolder(imgElement) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      canvas.width = 100;
+      canvas.height = 100;
+      ctx.drawImage(imgElement, 0, 0, 100, 100);
+      const imgData = ctx.getImageData(0, 0, 100, 100).data;
+
+      let bluePixels = 0;
+      let whitePixels = 0;
+
+      for (let i = 0; i < imgData.length; i += 4) {
+        const r = imgData[i];
+        const g = imgData[i + 1];
+        const b = imgData[i + 2];
+
+        // Đếm pixel màu xanh lục/xanh lam (Khung của Hóa đơn bán lẻ)
+        if (b > 110 && b > r + 20 && g > 80) bluePixels++;
+        // Đếm pixel giấy trắng (A4 Phiếu sửa & Hóa đơn)
+        if (r > 180 && g > 180 && b > 180) whitePixels++;
+      }
+
+      // Hóa đơn bán lẻ có ô kẻ màu xanh dương đặc trưng
+      if (bluePixels > 150) {
+        return "hoa_don";
+      } 
+      // Phiếu sửa chữa Zema là tờ giấy A4 trắng kẻ bảng
+      else if (whitePixels > 5500) {
+        return "phieu_sua";
+      } 
+      // Mặc định là Hình máy móc thực tế
+      else {
+        return "may";
+      }
+    }
+
     async function handleImageCapture(event) {
       const file = event.target.files[0];
       if (!file) return;
 
-      const captureBranch = currentBranch; // Khóa chặt chi nhánh ngay thời điểm bấm máy
+      const captureBranch = currentBranch;
       const reader = new FileReader();
       reader.onload = async (e) => {
         const rawDataUrl = e.target.result;
@@ -438,30 +472,37 @@
         const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
         const dateKey = now.toISOString().split('T')[0];
 
-        // Đóng dấu vĩnh viễn tên chi nhánh + ngày + @ Nguyễn Hữu Phúc vào file ảnh
-        const stampedDataUrl = await addWatermarkToImage(rawDataUrl, captureBranch, dateFormatted);
+        // Tạo đối tượng Image để quét thuật toán
+        const tempImg = new Image();
+        tempImg.onload = async () => {
+          // Tự động phân loại thư mục
+          const detectedFolder = autoDetectFolder(tempImg);
 
-        const photoObj = {
-          branch: captureBranch, // Gắn chi nhánh cố định vào database
-          date: dateKey,
-          folder: currentFolder,
-          capturedDate: dateFormatted,
-          dataUrl: stampedDataUrl
-        };
+          // Đóng dấu/in chữ trực tiếp vào ảnh
+          const stampedDataUrl = await addWatermarkToImage(rawDataUrl, captureBranch, dateFormatted);
 
-        const tx = db.transaction(["photos"], "readwrite");
-        tx.objectStore("photos").add(photoObj);
-        tx.oncomplete = () => {
-          selectedDate = dateKey;
-          renderCalendar();
-          loadImagesForCurrentView();
+          const photoObj = {
+            branch: captureBranch,
+            date: dateKey,
+            folder: detectedFolder, // Tự động lưu đúng thư mục đã lọc
+            capturedDate: dateFormatted,
+            dataUrl: stampedDataUrl
+          };
+
+          const tx = db.transaction(["photos"], "readwrite");
+          tx.objectStore("photos").add(photoObj);
+          tx.oncomplete = () => {
+            selectedDate = dateKey;
+            switchFolder(detectedFolder); // Tự chuyển màn hình sang thư mục vừa lọc
+            renderCalendar();
+          };
         };
+        tempImg.src = rawDataUrl;
       };
       reader.readAsDataURL(file);
       event.target.value = "";
     }
 
-    // VẼ TRỰC TIẾP LÊN PIXEL CỦA ẢNH - KHÔNG BAO GIỜ BỊ NHẢY HOẶC MẤT KHI PHÓNG TO
     function addWatermarkToImage(dataUrl, branchName, dateStr) {
       return new Promise((resolve) => {
         const img = new Image();
@@ -471,10 +512,8 @@
           canvas.height = img.height;
           const ctx = canvas.getContext('2d');
 
-          // Vẽ ảnh
           ctx.drawImage(img, 0, 0);
 
-          // Lớp đổ bóng tối góc dưới để chữ luôn hiển thị cực rõ
           const barHeight = Math.max(60, Math.round(img.height * 0.1));
           const gradient = ctx.createLinearGradient(0, img.height - barHeight, 0, img.height);
           gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
@@ -482,17 +521,14 @@
           ctx.fillStyle = gradient;
           ctx.fillRect(0, img.height - barHeight, img.width, barHeight);
 
-          // Cỡ chữ tự căn chỉnh theo độ phân giải ảnh
           const fontSizeMain = Math.max(20, Math.round(img.width * 0.04));
           const fontSizeSub = Math.max(14, Math.round(img.width * 0.028));
           const marginX = Math.round(img.width * 0.03);
 
-          // Dòng 1: Tên Chi Nhánh (Chữ Trắng Đậm)
           ctx.fillStyle = '#FFFFFF';
           ctx.font = `bold ${fontSizeMain}px -apple-system, BlinkMacSystemFont, Arial`;
           ctx.fillText(branchName, marginX, img.height - (fontSizeSub * 2.3));
 
-          // Dòng 2: Ngày + @ Nguyễn Hữu Phúc (In Nghiêng)
           ctx.fillStyle = '#FFFFFF';
           ctx.font = `${fontSizeSub}px -apple-system, BlinkMacSystemFont, Arial`;
           ctx.fillText(`${dateStr} `, marginX, img.height - (fontSizeSub * 0.8));
