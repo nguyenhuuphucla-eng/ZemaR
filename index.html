@@ -68,11 +68,11 @@
       color: white;
       font-weight: 900;
       font-family: 'Arial Black', sans-serif;
-      border-radius: 12px;
+      border-radius: 16px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 15px rgba(236, 72, 153, 0.4);
+      box-shadow: 0 4px 18px rgba(236, 72, 153, 0.5);
     }
   </style>
 </head>
@@ -86,22 +86,22 @@
     </div>
   </div>
 
-  <!-- Header chọn Chi Nhánh -->
-  <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-3 shadow-md">
+  <!-- Header chọn Chi Nhánh (Đã phóng to gấp đôi) -->
+  <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-4 shadow-xl">
     <div class="max-w-md mx-auto flex items-center justify-between gap-3">
-      <div class="flex items-center gap-2.5">
-        <div class="zema-logo w-9 h-9 text-xl italic transform -skew-x-6">Z</div>
+      <div class="flex items-center gap-3">
+        <div class="zema-logo w-12 h-12 text-2xl italic transform -skew-x-6">Z</div>
         <div>
-          <h1 class="text-lg font-black tracking-wide text-pink-500 leading-none">ZEMA R</h1>
-          <span class="text-[10px] text-slate-400 font-medium">Quản Lý Ảnh</span>
+          <h1 class="text-2xl font-black tracking-wider text-pink-500 leading-none">ZEMA R</h1>
+          <span class="text-xs text-slate-400 font-bold tracking-wide">Quản Lý Ảnh</span>
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
-        <select id="branchSelect" onchange="onBranchChange()" class="bg-slate-800 text-pink-400 border border-pink-500/30 font-bold text-xs rounded-lg px-3 py-2 outline-none">
+      <div class="flex items-center gap-2 flex-1 justify-end">
+        <select id="branchSelect" onchange="onBranchChange()" class="bg-slate-800 text-pink-400 border-2 border-pink-500/40 font-black text-sm rounded-2xl px-3.5 py-2.5 outline-none max-w-[210px] truncate shadow-lg">
         </select>
-        <button onclick="promptAdminBranch()" class="bg-slate-800 text-slate-300 p-2 rounded-lg border border-slate-700">
-          <i data-lucide="settings" class="w-4 h-4"></i>
+        <button onclick="promptAdminBranch()" class="bg-slate-800 text-slate-300 p-3 rounded-2xl border border-slate-700 shrink-0 shadow-lg active:scale-95 transition-transform">
+          <i data-lucide="settings" class="w-5 h-5"></i>
         </button>
       </div>
     </div>
@@ -286,7 +286,7 @@
 
     function initIndexedDB() {
       return new Promise((resolve) => {
-        const request = indexedDB.open("ZemaR_AutoFilterDB_v13", 13);
+        const request = indexedDB.open("ZemaR_AutoFilterDB_v14", 14);
         request.onupgradeneeded = (e) => {
           db = e.target.result;
           if (!db.objectStoreNames.contains("photos")) {
@@ -871,7 +871,6 @@
       loadImagesForCurrentView();
     }
 
-    // LƯU NHIỀU ẢNH VÀO ALBUM MÁY & TỰ ĐỘNG THOÁT TICK CHỌN
     async function batchSaveToPhotos() {
       if (selectedImageIds.size === 0) return;
       const filesArr = [];
@@ -907,11 +906,9 @@
         }
       }
 
-      // Tự động thoát chế độ chọn
       exitBatchMode();
     }
 
-    // CHIA SẺ NHIỀU ẢNH SANG APP KHÁC & TỰ ĐỘNG THOÁT TICK CHỌN
     async function batchShare() {
       if (selectedImageIds.size === 0) return;
       const filesArr = [];
@@ -938,7 +935,6 @@
         alert("Trình duyệt không hỗ trợ tính năng chia sẻ nhiều ảnh cùng lúc.");
       }
 
-      // Tự động thoát chế độ chọn
       exitBatchMode();
     }
 
