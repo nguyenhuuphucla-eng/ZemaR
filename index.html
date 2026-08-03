@@ -16,7 +16,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-  <!-- Thư viện Xuất PDF A4 Chuẩn Tiếng Việt -->
+  <!-- Thư viện Xuất PDF A4 Chuẩn -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- Firebase SDK -->
@@ -84,14 +84,22 @@
       -webkit-user-select: text !important;
       user-select: text !important;
     }
-    /* Style khung PDF ẩn để export */
-    #pdfRenderArea {
-      font-family: Arial, sans-serif;
-      color: #000;
-      background: #fff;
+
+    /* Đặt vị trí ngầm cho PDF để html2canvas không bị lệch vị trí */
+    #pdfRenderContainer {
+      position: absolute;
+      left: -9999px;
+      top: -9999px;
       width: 210mm;
-      padding: 15mm 15mm;
+    }
+    #pdfRenderArea {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 12mm 15mm;
       box-sizing: border-box;
+      background: #ffffff;
+      color: #000000;
+      font-family: Arial, sans-serif;
     }
   </style>
 </head>
@@ -249,14 +257,15 @@
           </div>
         </div>
 
+        <!-- Bên sửa chữa đã gán mặc định Nguyễn Hữu Phúc & NVSC -->
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="block text-slate-400 font-semibold mb-1">Bên Sửa Chữa</label>
-            <input type="text" id="formBenSuaChua" placeholder="Tên bên sửa..." class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg px-2.5 py-1.5 outline-none focus:border-pink-500">
+            <input type="text" id="formBenSuaChua" value="Nguyễn Hữu Phúc" class="w-full bg-slate-800 border border-slate-700 text-emerald-400 font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-pink-500">
           </div>
           <div>
             <label class="block text-slate-400 font-semibold mb-1">Chức Vụ</label>
-            <input type="text" id="formChucVuSuaChua" placeholder="Chức vụ..." class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg px-2.5 py-1.5 outline-none focus:border-pink-500">
+            <input type="text" id="formChucVuSuaChua" value="NVSC" class="w-full bg-slate-800 border border-slate-700 text-emerald-400 font-bold rounded-lg px-2.5 py-1.5 outline-none focus:border-pink-500">
           </div>
         </div>
       </div>
@@ -309,56 +318,55 @@
     </div>
   </div>
 
-  <!-- KHUNG HTML ẨN ĐỂ RENDER XUẤT FILE PDF A4 -->
-  <div class="hidden">
+  <!-- KHUNG NGUYÊN MẪU KHÔNG ẨN DISPLAY:NONE (GIÚP HTML2CANVAS VẼ CHUẨN A4 100%) -->
+  <div id="pdfRenderContainer">
     <div id="pdfRenderArea">
-      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
-        <div>
-          <h1 style="font-size: 28px; font-weight: 900; margin: 0; font-style: italic;">ZEMA</h1>
-          <p style="font-size: 14px; font-weight: bold; margin: 5px 0 0 0;" id="pdfBranchText">Tên CN: ...</p>
-        </div>
-      </div>
+      <div style="font-size: 26px; font-weight: 900; margin-bottom: 4px; font-style: italic;">ZEMA</div>
+      <div style="font-size: 13px; font-weight: bold; margin-bottom: 12px;" id="pdfBranchText">Tên CN: ...</div>
 
-      <h2 style="text-align: center; font-size: 20px; font-weight: bold; margin: 15px 0 20px 0; text-transform: uppercase;">PHIẾU ĐỀ XUẤT SỬA CHỮA MÁY</h2>
+      <div style="text-align: center; font-size: 19px; font-weight: bold; margin: 15px 0 20px 0; text-transform: uppercase;">
+        PHIẾU ĐỀ XUẤT SỬA CHỮA MÁY
+      </div>
 
       <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
-        <div>Người đề xuất: <span id="pdfNguoiDeXuat" style="font-weight: bold;"></span></div>
-        <div style="width: 200px;">Chức vụ: <span id="pdfChucVuDeXuat" style="font-weight: bold;"></span></div>
+        <div style="width: 58%;">Người đề xuất: <span id="pdfNguoiDeXuat"></span></div>
+        <div style="width: 40%;">Chức vụ: <span id="pdfChucVuDeXuat"></span></div>
       </div>
 
-      <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 15px;">
-        <div>Bên sửa chữa : <span id="pdfBenSuaChua" style="font-weight: bold;"></span></div>
-        <div style="width: 200px;">Chức vụ: <span id="pdfChucVuSuaChua" style="font-weight: bold;"></span></div>
+      <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 16px;">
+        <div style="width: 58%;">Bên sửa chữa : <span id="pdfBenSuaChua"></span></div>
+        <div style="width: 40%;">Chức vụ: <span id="pdfChucVuSuaChua"></span></div>
       </div>
 
-      <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 12px;">
+      <!-- BẢNG CHUẨN BỐ CỤC 7 CỘT BẢN FILE ZEMA.PDF -->
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 11px;">
         <thead>
-          <tr style="background-color: #f2f2f2; text-align: center; font-weight: bold;">
-            <th style="border: 1px solid #000; padding: 6px; width: 35px;">STT</th>
-            <th style="border: 1px solid #000; padding: 6px; width: 100px;">Mã Tài Sản</th>
-            <th style="border: 1px solid #000; padding: 6px; width: 140px;">Tên Máy</th>
-            <th style="border: 1px solid #000; padding: 6px; width: 35px;">SL</th>
-            <th style="border: 1px solid #000; padding: 6px; width: 90px;">Phòng Ban</th>
-            <th style="border: 1px solid #000; padding: 6px;">Hiện Trạng</th>
-            <th style="border: 1px solid #000; padding: 6px; width: 150px;">Xác Nhận Tình Trạng Máy Bên Bộ Phận Sửa Chữa</th>
+          <tr style="background-color: #f8fafc; text-align: center; font-weight: bold;">
+            <th style="border: 1px solid #000; padding: 6px 2px; width: 32px;">STT</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; width: 95px;">Mã Tài Sản</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; width: 130px;">Tên Máy</th>
+            <th style="border: 1px solid #000; padding: 6px 2px; width: 30px;">SL</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; width: 85px;">Phòng Ban</th>
+            <th style="border: 1px solid #000; padding: 6px 4px;">Hiện Trạng</th>
+            <th style="border: 1px solid #000; padding: 6px 4px; width: 150px;">Xác Nhận Tình Trạng Máy Bên Bộ Phận Sửa Chữa</th>
           </tr>
         </thead>
         <tbody id="pdfTableBody">
         </tbody>
       </table>
 
-      <div style="text-align: right; font-size: 13px; font-style: italic; margin-bottom: 25px;">
+      <div style="text-align: right; font-size: 13px; font-style: italic; margin-bottom: 30px; padding-right: 15px;">
         <span id="pdfDateText">Ngày........, Tháng......., Năm 202...</span>
       </div>
 
-      <div style="display: flex; justify-content: space-around; text-align: center; font-size: 14px;">
-        <div>
+      <div style="display: flex; justify-content: space-around; text-align: center; font-size: 13px;">
+        <div style="width: 40%;">
           <p style="font-weight: bold; margin: 0;">Người Lập Phiếu</p>
-          <p style="font-size: 12px; font-style: italic; margin: 3px 0 60px 0;">(ký, họ tên)</p>
+          <p style="font-size: 11px; font-style: italic; margin: 4px 0 65px 0;">(ký, họ tên)</p>
         </div>
-        <div>
+        <div style="width: 40%;">
           <p style="font-weight: bold; margin: 0;">Đội Bảo Trì</p>
-          <p style="font-size: 12px; font-style: italic; margin: 3px 0 60px 0;">(ký, họ tên)</p>
+          <p style="font-size: 11px; font-style: italic; margin: 4px 0 65px 0;">(ký, họ tên)</p>
         </div>
       </div>
     </div>
@@ -798,7 +806,7 @@
     }
 
     // =======================================================
-    // 📄 XUẤT FILE PDF SỬA CHỮA MÁY A4 CHUẨN TIẾNG VIỆT
+    // 📄 XUẤT FILE PDF SỬA CHỮA MÁY A4 CHUẨN MẪU ZEMA.PDF
     // =======================================================
     function renderFormRows() {
       const container = document.getElementById('formRowsContainer');
@@ -828,6 +836,8 @@
       document.getElementById('formBranch').value = currentBranch;
       const [y, m, d] = selectedDate.split('-');
       document.getElementById('formDateStr').value = `${d}/${m}/${y}`;
+      document.getElementById('formBenSuaChua').value = "Nguyễn Hữu Phúc";
+      document.getElementById('formChucVuSuaChua').value = "NVSC";
       document.getElementById('formModal').classList.remove('hidden');
     }
 
@@ -843,7 +853,7 @@
       const benSuaChua = document.getElementById('formBenSuaChua').value.trim();
       const chucVuSuaChua = document.getElementById('formChucVuSuaChua').value.trim();
 
-      // Điền thông tin vào khung HTML ẩn
+      // Điền thông tin vào khung HTML mẫu
       document.getElementById('pdfBranchText').innerText = `Tên CN: ${branch}`;
       document.getElementById('pdfNguoiDeXuat').innerText = nguoiDeXuat;
       document.getElementById('pdfChucVuDeXuat').innerText = chucVuDeXuat;
@@ -865,7 +875,7 @@
         const xacnhan = document.getElementById(`row_xacnhan_${i}`).value.trim();
 
         tbody.innerHTML += `
-          <tr style="height: 38px; text-align: center;">
+          <tr style="height: 36px; text-align: center;">
             <td style="border: 1px solid #000; padding: 4px;">${i}</td>
             <td style="border: 1px solid #000; padding: 4px;">${ma}</td>
             <td style="border: 1px solid #000; padding: 4px; text-align: left;">${ten}</td>
@@ -877,7 +887,7 @@
         `;
       }
 
-      // Cấu hình Xuất PDF
+      // Cấu hình Xuất PDF A4
       const element = document.getElementById('pdfRenderArea');
       const filenameStr = `Phieu_De_Xuat_Sua_Chua_${branch.replace(/\s+/g, '_')}_${d}-${m}-${y}.pdf`;
 
@@ -885,7 +895,7 @@
         margin: 0,
         filename: filenameStr,
         image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
+        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
 
