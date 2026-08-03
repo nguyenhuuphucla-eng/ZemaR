@@ -16,7 +16,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-  <!-- Firebase SDK (Version Compat cho 1 File HTML) -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
@@ -34,7 +34,6 @@
       color: #f8fafc;
       overflow-x: hidden;
     }
-    img { pointer-events: none; }
     .calendar-day {
       aspect-ratio: 1;
       display: flex;
@@ -72,11 +71,17 @@
       justify-content: center;
       box-shadow: 0 4px 18px rgba(236, 72, 153, 0.5);
     }
+    #modalImg {
+      pointer-events: auto !important;
+      touch-action: none !important;
+      will-change: transform;
+      transition: transform 0.05s linear;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between pb-10">
 
-  <!-- Màn hình Loading khi Đang Phân Loại / Đồng Bộ Cloud -->
+  <!-- Màn hình Loading -->
   <div id="ocrLoadingModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col items-center justify-center p-4">
     <div class="bg-slate-900 border border-slate-700 p-5 rounded-2xl flex flex-col items-center gap-3 text-center shadow-2xl max-w-xs w-full">
       <div class="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
@@ -200,7 +205,7 @@
 
   </main>
 
-  <!-- Viewer Ảnh Phóng To -->
+  <!-- Viewer Xem Ảnh Phóng To (Chạm zoom & kéo bằng tay) -->
   <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4">
     <div class="flex justify-between items-center text-white z-10">
       <div class="flex gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-700">
@@ -212,16 +217,16 @@
       <button onclick="closeModal()" class="p-2 bg-slate-800/80 rounded-full text-slate-300"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
 
-    <div class="flex-1 flex items-center justify-center overflow-hidden my-auto">
-      <img id="modalImg" class="max-h-[75vh] max-w-full object-contain transition-transform duration-200" style="transform: scale(1);" alt="Preview">
+    <!-- Màn hình hiển thị ảnh hỗ trợ chạm zoom/kéo -->
+    <div id="modalImgContainer" class="flex-1 flex items-center justify-center overflow-hidden my-auto w-full relative">
+      <img id="modalImg" class="max-h-[75vh] max-w-full object-contain" alt="Preview">
     </div>
 
-    <div class="flex justify-around items-center bg-slate-900/90 backdrop-blur-md rounded-2xl py-3 border border-slate-800">
-      <button onclick="zoomModalImage(0.25)" class="flex flex-col items-center text-slate-300 text-xs gap-1"><i data-lucide="zoom-in" class="w-5 h-5 text-pink-400"></i> Phóng</button>
-      <button onclick="zoomModalImage(-0.25)" class="flex flex-col items-center text-slate-300 text-xs gap-1"><i data-lucide="zoom-out" class="w-5 h-5 text-pink-400"></i> Thu nhỏ</button>
-      <button onclick="saveSingleToPhotos()" class="flex flex-col items-center text-emerald-400 text-xs gap-1"><i data-lucide="download" class="w-5 h-5 text-emerald-400"></i> Lưu về máy</button>
-      <button onclick="shareSingleImage()" class="flex flex-col items-center text-pink-400 text-xs gap-1"><i data-lucide="share-2" class="w-5 h-5 text-pink-400"></i> Chia sẻ</button>
-      <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1"><i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa</button>
+    <!-- Thanh công cụ bên dưới -->
+    <div class="flex justify-around items-center bg-slate-900/90 backdrop-blur-md rounded-2xl py-3 border border-slate-800 z-10">
+      <button onclick="saveSingleToPhotos()" class="flex flex-col items-center text-emerald-400 text-xs gap-1 font-semibold"><i data-lucide="download" class="w-5 h-5 text-emerald-400"></i> Lưu về máy</button>
+      <button onclick="shareSingleImage()" class="flex flex-col items-center text-pink-400 text-xs gap-1 font-semibold"><i data-lucide="share-2" class="w-5 h-5 text-pink-400"></i> Chia sẻ</button>
+      <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1 font-semibold"><i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa</button>
     </div>
   </div>
 
@@ -239,7 +244,7 @@
   measurementId: "G-6F6EM849R8"
     };
 
-    // Khởi tạo Firebase Cloud
+    // Khởi tạo Firebase
     firebase.initializeApp(firebaseConfig);
     const firestore = firebase.firestore();
 
@@ -263,7 +268,12 @@
     let isBatchMode = false;
     let selectedImageIds = new Set();
     let activeModalImgId = null;
-    let currentZoomScale = 1;
+
+    // Biến điều khiển Zoom & Pan (Vuốt bằng tay)
+    let scale = 1, posX = 0, posY = 0;
+    let startX = 0, startY = 0;
+    let initialDist = 0, initialScale = 1;
+    let lastTapTime = 0;
 
     window.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
@@ -271,6 +281,7 @@
       await renderCalendar();
       listenToCloudPhotos();
       initOCRWorker();
+      initTouchZoomPan();
     });
 
     async function initOCRWorker() {
@@ -451,7 +462,6 @@
             imgContainer.appendChild(checkOverlay);
             card.appendChild(imgContainer);
 
-            // BỘ XỬ LÝ NHẤN GIỮ (LONG PRESS) 0.5 GIÂY ĐỂ BẬT CHỌN NHIỀU
             let pressTimer = null;
             let isLongPress = false;
 
@@ -459,16 +469,13 @@
               isLongPress = false;
               pressTimer = setTimeout(() => {
                 isLongPress = true;
-                if (navigator.vibrate) navigator.vibrate(40); // Rung nhẹ báo hiệu
+                if (navigator.vibrate) navigator.vibrate(40);
                 toggleBatchSelect(photo.id);
-              }, 500); // 0.5 giây
+              }, 500);
             };
 
             const cancelPress = () => {
-              if (pressTimer) {
-                clearTimeout(pressTimer);
-                pressTimer = null;
-              }
+              if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
             };
 
             card.addEventListener('touchstart', startPress, { passive: true });
@@ -479,23 +486,17 @@
             card.addEventListener('mouseup', cancelPress);
             card.addEventListener('mouseleave', cancelPress);
 
-            card.onclick = (e) => {
-              if (isLongPress) {
-                isLongPress = false;
-                return;
-              }
-              if (isBatchMode) {
-                toggleBatchSelect(photo.id);
-              } else {
-                openSingleImageModal(photo);
-              }
+            card.onclick = () => {
+              if (isLongPress) { isLongPress = false; return; }
+              if (isBatchMode) { toggleBatchSelect(photo.id); }
+              else { openSingleImageModal(photo); }
             };
 
             grid.appendChild(card);
           });
           lucide.createIcons();
         }, (error) => {
-          console.error("Lỗi lắng nghe dữ liệu Cloud:", error);
+          console.error("Lỗi Cloud:", error);
         });
     }
 
@@ -511,9 +512,9 @@
         img.onload = () => {
           const canvas = document.createElement('canvas');
           const cropHeight = img.height * 0.30;
-          const scale = maxWidth / img.width;
+          const scaleRatio = maxWidth / img.width;
           canvas.width = maxWidth;
-          canvas.height = cropHeight * scale;
+          canvas.height = cropHeight * scaleRatio;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, img.width, cropHeight, 0, 0, canvas.width, canvas.height);
           resolve(canvas.toDataURL('image/jpeg', 0.8));
@@ -568,8 +569,7 @@
           switchFolder(detectedFolder);
           renderCalendar();
         } catch (err) {
-          console.error("Lỗi đẩy Cloud:", err);
-          alert("❌ Không thể đẩy ảnh lên Cloud!\nLỗi: " + err.message);
+          alert("❌ Lỗi tải ảnh: " + err.message);
         } finally {
           loadingModal.classList.add('hidden');
           event.target.value = "";
@@ -584,17 +584,13 @@
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          
           const MAX_WIDTH = 1000;
-          let scale = 1;
-          if (img.width > MAX_WIDTH) {
-            scale = MAX_WIDTH / img.width;
-          }
-          
-          canvas.width = img.width * scale;
-          canvas.height = img.height * scale;
+          let scaleRatio = 1;
+          if (img.width > MAX_WIDTH) scaleRatio = MAX_WIDTH / img.width;
+
+          canvas.width = img.width * scaleRatio;
+          canvas.height = img.height * scaleRatio;
           const ctx = canvas.getContext('2d');
-          
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
           const barHeight = Math.max(50, Math.round(canvas.height * 0.1));
@@ -627,22 +623,83 @@
       });
     }
 
+    // =======================================================
+    // 🖐️ XỬ LÝ CẢM ỨNG CHẠM ZOOM 2 NGÓN & KÉO DI CHUYỂN ẢNH
+    // =======================================================
+    function initTouchZoomPan() {
+      const img = document.getElementById('modalImg');
+      if (!img) return;
+
+      img.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+          const now = new Date().getTime();
+          if (now - lastTapTime < 300) {
+            // Nhấp kép (Double tap)
+            if (scale > 1) { scale = 1; posX = 0; posY = 0; }
+            else { scale = 2.5; posX = 0; posY = 0; }
+            updateImgTransform();
+            lastTapTime = 0;
+            return;
+          }
+          lastTapTime = now;
+          startX = e.touches[0].clientX - posX;
+          startY = e.touches[0].clientY - posY;
+        } else if (e.touches.length === 2) {
+          initialDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          initialScale = scale;
+        }
+      }, { passive: true });
+
+      img.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1 && scale > 1) {
+          posX = e.touches[0].clientX - startX;
+          posY = e.touches[0].clientY - startY;
+          updateImgTransform();
+        } else if (e.touches.length === 2) {
+          const currentDist = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+          );
+          if (initialDist > 0) {
+            scale = Math.max(1, Math.min(4, initialScale * (currentDist / initialDist)));
+            if (scale === 1) { posX = 0; posY = 0; }
+            updateImgTransform();
+          }
+        }
+      }, { passive: true });
+
+      img.addEventListener('touchend', () => {
+        if (scale <= 1) {
+          scale = 1; posX = 0; posY = 0;
+          updateImgTransform();
+        }
+      });
+    }
+
+    function updateImgTransform() {
+      const img = document.getElementById('modalImg');
+      if (img) img.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`;
+    }
+
+    function resetZoomPan() {
+      scale = 1; posX = 0; posY = 0;
+      updateImgTransform();
+    }
+
     function openSingleImageModal(photo) {
       activeModalImgId = photo.id;
       document.getElementById('modalImg').src = photo.dataUrl;
-      currentZoomScale = 1;
-      document.getElementById('modalImg').style.transform = `scale(1)`;
+      resetZoomPan();
       document.getElementById('imageModal').classList.remove('hidden');
     }
 
     function closeModal() {
       document.getElementById('imageModal').classList.add('hidden');
       activeModalImgId = null;
-    }
-
-    function zoomModalImage(delta) {
-      currentZoomScale = Math.max(0.5, Math.min(4, currentZoomScale + delta));
-      document.getElementById('modalImg').style.transform = `scale(${currentZoomScale})`;
+      resetZoomPan();
     }
 
     async function changeImageFolder(newFolder) {
@@ -656,6 +713,54 @@
       await firestore.collection("photos").doc(activeModalImgId).delete();
       closeModal();
       renderCalendar();
+    }
+
+    // =======================================================
+    // 📥 TÍNH NĂNG LƯU VỀ MÁY & CHIA SẺ NATIVE
+    // =======================================================
+    async function dataUrlToFile(dataUrl, filename) {
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      return new File([blob], filename, { type: blob.type || 'image/jpeg' });
+    }
+
+    function downloadDataUrl(dataUrl, filename) {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    }
+
+    async function saveSingleToPhotos() {
+      if (!activeModalImgId) return;
+      const photo = currentFolderPhotosCache.find(p => p.id === activeModalImgId);
+      if (!photo) return;
+      
+      const filename = `ZemaR_${photo.branch}_${photo.date}.jpg`;
+      downloadDataUrl(photo.dataUrl, filename);
+    }
+
+    async function shareSingleImage() {
+      if (!activeModalImgId) return;
+      const photo = currentFolderPhotosCache.find(p => p.id === activeModalImgId);
+      if (!photo) return;
+
+      const filename = `ZemaR_${photo.branch}_${photo.date}.jpg`;
+      try {
+        const file = await dataUrlToFile(photo.dataUrl, filename);
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            title: `Zema R - ${photo.branch}`,
+            files: [file]
+          });
+        } else {
+          downloadDataUrl(photo.dataUrl, filename);
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') downloadDataUrl(photo.dataUrl, filename);
+      }
     }
 
     function toggleBatchSelect(id) {
@@ -690,6 +795,45 @@
       selectedImageIds.clear();
       document.getElementById('batchBar').classList.add('hidden');
       listenToCloudPhotos();
+    }
+
+    async function batchSaveToPhotos() {
+      if (selectedImageIds.size === 0) return;
+      const selectedPhotos = currentFolderPhotosCache.filter(p => selectedImageIds.has(p.id));
+
+      let count = 0;
+      for (let photo of selectedPhotos) {
+        count++;
+        const filename = `ZemaR_${photo.branch}_${photo.date}_${count}.jpg`;
+        downloadDataUrl(photo.dataUrl, filename);
+        await new Promise(r => setTimeout(r, 300));
+      }
+    }
+
+    async function batchShare() {
+      if (selectedImageIds.size === 0) return;
+      const selectedPhotos = currentFolderPhotosCache.filter(p => selectedImageIds.has(p.id));
+
+      try {
+        const files = [];
+        for (let i = 0; i < selectedPhotos.length; i++) {
+          const photo = selectedPhotos[i];
+          const file = await dataUrlToFile(photo.dataUrl, `ZemaR_${photo.branch}_${i+1}.jpg`);
+          files.push(file);
+        }
+
+        if (navigator.canShare && navigator.canShare({ files })) {
+          await navigator.share({
+            title: `Zema R - ${currentBranch}`,
+            files: files
+          });
+        } else {
+          alert("Trình duyệt thiết bị không hỗ trợ chia sẻ đồng thời nhiều tệp. Đang chuyển sang tải về máy...");
+          batchSaveToPhotos();
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') batchSaveToPhotos();
+      }
     }
 
     async function batchDelete() {
