@@ -85,7 +85,7 @@
       user-select: text !important;
     }
 
-    /* Khung A4 Cố định để xuất 1 trang duy nhất không bị tràn */
+    /* Khung A4 Cố định để xuất 1 trang duy nhất */
     #pdfRenderContainer {
       position: absolute;
       left: -9999px;
@@ -318,14 +318,26 @@
     </div>
   </div>
 
-  <!-- KHUNG MAU PHIEU XUAT PDF A4 TRỌN TRONG 1 TRANG -->
+  <!-- KHUNG MẪU XUẤT PDF TRỌN VẸN 1 TRANG Y NHƯ FILE ZEMA.PDF -->
   <div id="pdfRenderContainer">
     <div id="pdfRenderArea">
-      <!-- LOGO VÀ TÊN CHI NHÁNH CHUẨN ZEMA.PDF -->
-      <div style="margin-bottom: 2px;">
-        <div style="font-size: 26px; font-weight: 900; letter-spacing: 0.5px;">ZEMA</div>
-        <div style="font-size: 13px; font-weight: normal; margin-top: 2px;" id="pdfBranchText">Tên CN:..</div>
+      
+      <!-- LOGO ZEMA CÁCH ĐIỆU CỰC NÉT BẰNG SVG -->
+      <div style="margin-bottom: 6px;">
+        <svg width="160" height="40" viewBox="0 0 160 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Khung logo chữ Z nghiêng -->
+          <rect x="0" y="2" width="36" height="36" rx="9" fill="#000000" />
+          <text x="9" y="28" font-family="'Arial Black', 'Impact', sans-serif" font-size="25" font-weight="900" font-style="italic" fill="#FFFFFF">Z</text>
+          
+          <!-- Chữ ZEMA cách điệu -->
+          <text x="44" y="28" font-family="'Arial Black', 'Impact', sans-serif" font-size="25" font-weight="900" font-style="italic" fill="#000000" letter-spacing="2">ZEMA</text>
+          
+          <!-- Đường thanh điểm nhấn phía dưới -->
+          <path d="M 44 33 L 140 33" stroke="#000000" stroke-width="2.5" stroke-linecap="round"/>
+        </svg>
       </div>
+
+      <div style="font-size: 13px; color: #000000; margin-bottom: 10px;" id="pdfBranchText">Tên CN:..</div>
 
       <!-- TIÊU ĐỀ BẢN IN -->
       <div style="text-align: center; font-size: 18px; font-weight: bold; margin: 8px 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">
@@ -343,7 +355,7 @@
         <div style="width: 40%;">Chức vụ: <span id="pdfChucVuSuaChua"></span></div>
       </div>
 
-      <!-- BẢNG CHUẨN BỐ CỤC FILE ZEMA.PDF -->
+      <!-- BẢNG CỘT TỜ PHIẾU ZEMA -->
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; table-layout: fixed;">
         <thead>
           <tr style="text-align: center; font-weight: bold;">
@@ -758,10 +770,9 @@
             });
           } catch (err) {
             alert("⚠️ Lỗi lưu ảnh lên Cloud: " + err.message);
-          } finally {
+          } opacity: 1;
             tempPhotosMap.delete(tempId);
             renderPhotosGrid();
-          }
         })();
       };
 
@@ -860,7 +871,6 @@
       const benSuaChua = document.getElementById('formBenSuaChua').value.trim();
       const chucVuSuaChua = document.getElementById('formChucVuSuaChua').value.trim();
 
-      // Điền thông tin vào khung HTML mẫu
       document.getElementById('pdfBranchText').innerText = `Tên CN:.. ${branch}`;
       document.getElementById('pdfNguoiDeXuat').innerText = nguoiDeXuat;
       document.getElementById('pdfChucVuDeXuat').innerText = chucVuDeXuat;
@@ -870,7 +880,6 @@
       const [d, m, y] = dateStr.split('/');
       document.getElementById('pdfDateText').innerText = `Ngày ${d || '...'}, Tháng ${m || '...'}, Năm ${y || '202...'}`;
 
-      // Nạp 10 dòng dữ liệu vào Bảng (Mặc định SL = 1)
       const tbody = document.getElementById('pdfTableBody');
       tbody.innerHTML = "";
       for (let i = 1; i <= 10; i++) {
@@ -895,7 +904,6 @@
         `;
       }
 
-      // Cấu hình Khóa cứng trọn vẹn 1 Trang A4
       const element = document.getElementById('pdfRenderArea');
       const filenameStr = `Phieu_De_Xuat_Sua_Chua_${branch.replace(/\s+/g, '_')}_${d}-${m}-${y}.pdf`;
 
@@ -917,7 +925,7 @@
     }
 
     // =======================================================
-    // 🖐️ XỬ LÝ CẢM ỨNG CẢM ỨNG CHẠM ZOOM & VUỐT CHUYỂN ẢNH
+    // 🖐️ XỬ LÝ CẢM ỨNG CHẠM ZOOM & VUỐT CHUYỂN ẢNH
     // =======================================================
     function initTouchZoomPan() {
       const img = document.getElementById('modalImg');
