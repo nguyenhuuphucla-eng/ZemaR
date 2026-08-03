@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh (Cloud Sync)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,6 +15,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <!-- Thư viện Xuất PDF A4 Chuẩn Tiếng Việt -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -77,6 +80,19 @@
       will-change: transform;
       transition: transform 0.05s linear;
     }
+    input, select, textarea {
+      -webkit-user-select: text !important;
+      user-select: text !important;
+    }
+    /* Style khung PDF ẩn để export */
+    #pdfRenderArea {
+      font-family: Arial, sans-serif;
+      color: #000;
+      background: #fff;
+      width: 210mm;
+      padding: 15mm 15mm;
+      box-sizing: border-box;
+    }
   </style>
 </head>
 <body class="min-h-screen flex flex-col justify-between pb-10">
@@ -135,7 +151,7 @@
       </div>
     </section>
 
-    <!-- Thư mục & Nút Chụp -->
+    <!-- Thư mục, Nút Chụp & Nút Tạo Phiếu PDF -->
     <section class="space-y-3">
       <div class="flex items-center justify-between gap-1.5">
         <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800 flex-1 overflow-x-auto gap-1">
@@ -153,8 +169,12 @@
           </button>
         </div>
 
-        <div class="flex items-center gap-1 shrink-0">
-          <button onclick="triggerCameraInput()" class="bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold px-3.5 py-2.5 rounded-xl shadow-lg flex items-center gap-1.5 text-xs active:scale-95 transition-transform">
+        <div class="flex items-center gap-1.5 shrink-0">
+          <button onclick="openFormModal()" class="bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 font-bold px-2.5 py-2.5 rounded-xl shadow-lg flex items-center gap-1 text-xs active:scale-95 transition-transform">
+            <i data-lucide="file-text" class="w-4 h-4 text-emerald-400"></i> Tạo PDF
+          </button>
+
+          <button onclick="triggerCameraInput()" class="bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold px-3 py-2.5 rounded-xl shadow-lg flex items-center gap-1 text-xs active:scale-95 transition-transform">
             <i data-lucide="camera" class="w-4 h-4"></i> Chụp
           </button>
         </div>
@@ -194,7 +214,70 @@
 
   </main>
 
-  <!-- Viewer Xem Ảnh Phóng To -->
+  <!-- MODAL FORM NHẬP PHIẾU SỬA CHỮA MÁY -->
+  <div id="formModal" class="fixed inset-0 bg-black/90 z-50 hidden flex flex-col justify-between p-4 overflow-y-auto">
+    <div class="max-w-md mx-auto w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4 shadow-2xl">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div class="flex items-center gap-2">
+          <i data-lucide="file-text" class="w-5 h-5 text-emerald-400"></i>
+          <h2 class="text-base font-bold text-pink-500 uppercase tracking-wide">TẠO PHIẾU ĐỀ XUẤT SỬA CHỮA MÁY</h2>
+        </div>
+        <button onclick="closeFormModal()" class="text-slate-400 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+
+      <!-- Thông tin chung -->
+      <div class="space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Chi Nhánh</label>
+            <input type="text" id="formBranch" readonly class="w-full bg-slate-800 border border-slate-700 text-pink-400 font-bold rounded-lg px-2.5 py-1.5 outline-none">
+          </div>
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Ngày Phiếu</label>
+            <input type="text" id="formDateStr" class="w-full bg-slate-800 border border-slate-700 text-slate-200 font-bold rounded-lg px-2.5 py-1.5 outline-none">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Người Đề Xuất</label>
+            <input type="text" id="formNguoiDeXuat" placeholder="Nhập tên..." class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg px-2.5 py-1.5 outline-none focus:border-pink-500">
+          </div>
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Chức Vụ</label>
+            <input type="text" id="formChucVuDeXuat" placeholder="Chức vụ..." class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg px-2.5 py-1.5 outline-none focus:border-pink-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Bên Sửa Chữa</label>
+            <input type="text" id="formBenSuaChua" placeholder="Tên bên sửa..." class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg px-2.5 py-1.5 outline-none focus:border-pink-500">
+          </div>
+          <div>
+            <label class="block text-slate-400 font-semibold mb-1">Chức Vụ</label>
+            <input type="text" id="formChucVuSuaChua" placeholder="Chức vụ..." class="w-full bg-slate-800 border border-slate-700 text-slate-100 rounded-lg px-2.5 py-1.5 outline-none focus:border-pink-500">
+          </div>
+        </div>
+      </div>
+
+      <!-- Danh sách máy (10 Dòng) -->
+      <div class="space-y-2">
+        <span class="text-xs font-bold text-slate-300 block">Danh Sách Máy Sửa (Nhập 1 - 10 máy):</span>
+        <div id="formRowsContainer" class="space-y-3 max-h-[38vh] overflow-y-auto pr-1">
+        </div>
+      </div>
+
+      <div class="flex gap-2 pt-2 border-t border-slate-800">
+        <button onclick="closeFormModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs">Hủy Bỏ</button>
+        <button onclick="exportFormToPDF()" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg flex items-center justify-center gap-1.5">
+          <i data-lucide="download" class="w-4 h-4"></i> Tải File PDF để in
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VIEWER XEM ẢNH -->
   <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4 select-none">
     <div class="flex justify-between items-center text-white z-10">
       <div class="flex items-center gap-2">
@@ -208,7 +291,6 @@
       <button onclick="closeModal()" class="p-2 bg-slate-800/80 rounded-full text-slate-300"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
 
-    <!-- Màn hình hiển thị ảnh chính & 2 nút điều hướng mũi tên -->
     <div id="modalImgContainer" class="flex-1 flex items-center justify-center overflow-hidden my-auto w-full relative">
       <button onclick="navigateModalPhoto(-1)" class="absolute left-1 z-20 bg-slate-900/60 hover:bg-slate-900 border border-slate-700/50 text-white p-2.5 rounded-full active:scale-95 transition-all">
         <i data-lucide="chevron-left" class="w-6 h-6"></i>
@@ -221,10 +303,64 @@
       </button>
     </div>
 
-    <!-- Thanh công cụ bên dưới -->
     <div class="flex justify-around items-center bg-slate-900/90 backdrop-blur-md rounded-2xl py-3 border border-slate-800 z-10">
       <button onclick="shareSingleImage()" class="flex flex-col items-center text-pink-400 text-xs gap-1 font-semibold px-6 py-1"><i data-lucide="share-2" class="w-5 h-5 text-pink-400"></i> Chia sẻ</button>
       <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1 font-semibold px-6 py-1"><i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa</button>
+    </div>
+  </div>
+
+  <!-- KHUNG HTML ẨN ĐỂ RENDER XUẤT FILE PDF A4 -->
+  <div class="hidden">
+    <div id="pdfRenderArea">
+      <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+        <div>
+          <h1 style="font-size: 28px; font-weight: 900; margin: 0; font-style: italic;">ZEMA</h1>
+          <p style="font-size: 14px; font-weight: bold; margin: 5px 0 0 0;" id="pdfBranchText">Tên CN: ...</p>
+        </div>
+      </div>
+
+      <h2 style="text-align: center; font-size: 20px; font-weight: bold; margin: 15px 0 20px 0; text-transform: uppercase;">PHIẾU ĐỀ XUẤT SỬA CHỮA MÁY</h2>
+
+      <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px;">
+        <div>Người đề xuất: <span id="pdfNguoiDeXuat" style="font-weight: bold;"></span></div>
+        <div style="width: 200px;">Chức vụ: <span id="pdfChucVuDeXuat" style="font-weight: bold;"></span></div>
+      </div>
+
+      <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 15px;">
+        <div>Bên sửa chữa : <span id="pdfBenSuaChua" style="font-weight: bold;"></span></div>
+        <div style="width: 200px;">Chức vụ: <span id="pdfChucVuSuaChua" style="font-weight: bold;"></span></div>
+      </div>
+
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 12px;">
+        <thead>
+          <tr style="background-color: #f2f2f2; text-align: center; font-weight: bold;">
+            <th style="border: 1px solid #000; padding: 6px; width: 35px;">STT</th>
+            <th style="border: 1px solid #000; padding: 6px; width: 100px;">Mã Tài Sản</th>
+            <th style="border: 1px solid #000; padding: 6px; width: 140px;">Tên Máy</th>
+            <th style="border: 1px solid #000; padding: 6px; width: 35px;">SL</th>
+            <th style="border: 1px solid #000; padding: 6px; width: 90px;">Phòng Ban</th>
+            <th style="border: 1px solid #000; padding: 6px;">Hiện Trạng</th>
+            <th style="border: 1px solid #000; padding: 6px; width: 150px;">Xác Nhận Tình Trạng Máy Bên Bộ Phận Sửa Chữa</th>
+          </tr>
+        </thead>
+        <tbody id="pdfTableBody">
+        </tbody>
+      </table>
+
+      <div style="text-align: right; font-size: 13px; font-style: italic; margin-bottom: 25px;">
+        <span id="pdfDateText">Ngày........, Tháng......., Năm 202...</span>
+      </div>
+
+      <div style="display: flex; justify-content: space-around; text-align: center; font-size: 14px;">
+        <div>
+          <p style="font-weight: bold; margin: 0;">Người Lập Phiếu</p>
+          <p style="font-size: 12px; font-style: italic; margin: 3px 0 60px 0;">(ký, họ tên)</p>
+        </div>
+        <div>
+          <p style="font-weight: bold; margin: 0;">Đội Bảo Trì</p>
+          <p style="font-size: 12px; font-style: italic; margin: 3px 0 60px 0;">(ký, họ tên)</p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -233,13 +369,12 @@
     // 💥 DÁN MÃ FIREBASE CONFIG CỦA ÔNG VÀO ĐÂY 💥
     // ==========================================
     const firebaseConfig = {
-      apiKey: "AIzaSyATkvZNedy1vDx-yupT0IFUrImit-jTYkk",
-  authDomain: "zemar-2b24e.firebaseapp.com",
-  projectId: "zemar-2b24e",
-  storageBucket: "zemar-2b24e.firebasestorage.app",
-  messagingSenderId: "901360040870",
-  appId: "1:901360040870:web:485de54f94d60a81526d67",
-  measurementId: "G-6F6EM849R8"
+      apiKey: "THAY_MÃ_API_KEY_CỦA_ÔNG",
+      authDomain: "THAY_AUTH_DOMAIN",
+      projectId: "THAY_PROJECT_ID",
+      storageBucket: "THAY_STORAGE_BUCKET",
+      messagingSenderId: "THAY_SENDER_ID",
+      appId: "THAY_APP_ID"
     };
 
     // Khởi tạo Firebase
@@ -271,7 +406,7 @@
     let activeModalImgId = null;
     let currentModalIndex = -1;
 
-    // Biến điều khiển Zoom, Pan & Vuốt
+    // Biến Zoom, Pan & Vuốt
     let scale = 1, posX = 0, posY = 0;
     let startX = 0, startY = 0;
     let swipeStartX = 0, swipeStartY = 0;
@@ -285,6 +420,7 @@
       listenToCloudPhotos();
       initOCRWorker();
       initTouchZoomPan();
+      renderFormRows();
     });
 
     async function initOCRWorker() {
@@ -661,7 +797,107 @@
     }
 
     // =======================================================
-    // 🖐️ XỬ LÝ CẢM ỨNG CHẠM ZOOM & VUỐT CHUYỂN ẢNH
+    // 📄 XUẤT FILE PDF SỬA CHỮA MÁY A4 CHUẨN TIẾNG VIỆT
+    // =======================================================
+    function renderFormRows() {
+      const container = document.getElementById('formRowsContainer');
+      container.innerHTML = "";
+      for (let i = 1; i <= 10; i++) {
+        container.innerHTML += `
+          <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 space-y-2">
+            <div class="flex justify-between items-center text-[11px] font-bold text-pink-400 border-b border-slate-800/80 pb-1">
+              <span>MÁY MỤC #${i}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <input type="text" id="row_ma_${i}" placeholder="Mã Tài Sản" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_ten_${i}" placeholder="Tên Máy" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+            </div>
+            <div class="grid grid-cols-3 gap-1.5 text-xs">
+              <input type="text" id="row_sl_${i}" placeholder="SL" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_phong_${i}" placeholder="Phòng/Ban" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_trangthai_${i}" placeholder="Hiện Trạng" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+            </div>
+            <input type="text" id="row_xacnhan_${i}" placeholder="Xác nhận tình trạng máy (Bộ phận sửa)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
+          </div>
+        `;
+      }
+    }
+
+    function openFormModal() {
+      document.getElementById('formBranch').value = currentBranch;
+      const [y, m, d] = selectedDate.split('-');
+      document.getElementById('formDateStr').value = `${d}/${m}/${y}`;
+      document.getElementById('formModal').classList.remove('hidden');
+    }
+
+    function closeFormModal() {
+      document.getElementById('formModal').classList.add('hidden');
+    }
+
+    async function exportFormToPDF() {
+      const branch = document.getElementById('formBranch').value;
+      const dateStr = document.getElementById('formDateStr').value;
+      const nguoiDeXuat = document.getElementById('formNguoiDeXuat').value.trim();
+      const chucVuDeXuat = document.getElementById('formChucVuDeXuat').value.trim();
+      const benSuaChua = document.getElementById('formBenSuaChua').value.trim();
+      const chucVuSuaChua = document.getElementById('formChucVuSuaChua').value.trim();
+
+      // Điền thông tin vào khung HTML ẩn
+      document.getElementById('pdfBranchText').innerText = `Tên CN: ${branch}`;
+      document.getElementById('pdfNguoiDeXuat').innerText = nguoiDeXuat;
+      document.getElementById('pdfChucVuDeXuat').innerText = chucVuDeXuat;
+      document.getElementById('pdfBenSuaChua').innerText = benSuaChua;
+      document.getElementById('pdfChucVuSuaChua').innerText = chucVuSuaChua;
+
+      const [d, m, y] = dateStr.split('/');
+      document.getElementById('pdfDateText').innerText = `Ngày ${d || '...'}, Tháng ${m || '...'}, Năm ${y || '202...'}`;
+
+      // Nạp 10 dòng dữ liệu vào Bảng
+      const tbody = document.getElementById('pdfTableBody');
+      tbody.innerHTML = "";
+      for (let i = 1; i <= 10; i++) {
+        const ma = document.getElementById(`row_ma_${i}`).value.trim();
+        const ten = document.getElementById(`row_ten_${i}`).value.trim();
+        const sl = document.getElementById(`row_sl_${i}`).value.trim();
+        const phong = document.getElementById(`row_phong_${i}`).value.trim();
+        const hientrang = document.getElementById(`row_trangthai_${i}`).value.trim();
+        const xacnhan = document.getElementById(`row_xacnhan_${i}`).value.trim();
+
+        tbody.innerHTML += `
+          <tr style="height: 38px; text-align: center;">
+            <td style="border: 1px solid #000; padding: 4px;">${i}</td>
+            <td style="border: 1px solid #000; padding: 4px;">${ma}</td>
+            <td style="border: 1px solid #000; padding: 4px; text-align: left;">${ten}</td>
+            <td style="border: 1px solid #000; padding: 4px;">${sl}</td>
+            <td style="border: 1px solid #000; padding: 4px;">${phong}</td>
+            <td style="border: 1px solid #000; padding: 4px; text-align: left;">${hientrang}</td>
+            <td style="border: 1px solid #000; padding: 4px; text-align: left;">${xacnhan}</td>
+          </tr>
+        `;
+      }
+
+      // Cấu hình Xuất PDF
+      const element = document.getElementById('pdfRenderArea');
+      const filenameStr = `Phieu_De_Xuat_Sua_Chua_${branch.replace(/\s+/g, '_')}_${d}-${m}-${y}.pdf`;
+
+      const opt = {
+        margin: 0,
+        filename: filenameStr,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      };
+
+      try {
+        await html2pdf().set(opt).from(element).save();
+        closeFormModal();
+      } catch (err) {
+        alert("Lỗi xuất file PDF: " + err.message);
+      }
+    }
+
+    // =======================================================
+    // 🖐️ XỬ LÝ CẢM ỨNG CẢM ỨNG CHẠM ZOOM & VUỐT CHUYỂN ẢNH
     // =======================================================
     function initTouchZoomPan() {
       const img = document.getElementById('modalImg');
@@ -850,7 +1086,6 @@
       }
     }
 
-    // SỬA CÚ PHÁP TỰ ĐỘNG THOÁT VÀ ẨN THANH CHỌN
     function exitBatchMode() {
       isBatchMode = false;
       selectedImageIds.clear();
@@ -858,7 +1093,6 @@
       renderPhotosGrid();
     }
 
-    // SỬA HÀM CHIA SẺ BỔ SUNG FINALLY TỰ ĐỘNG THOÁT
     async function batchShare() {
       if (selectedImageIds.size === 0) return;
       const selectedPhotos = currentFolderPhotosCache.filter(p => selectedImageIds.has(p.id));
@@ -880,9 +1114,9 @@
           alert("Trình duyệt thiết bị không hỗ trợ chia sẻ đồng thời nhiều tệp.");
         }
       } catch (err) {
-        console.log("Hủy hoặc hoàn tất chia sẻ:", err);
+        console.log("Hủy chia sẻ:", err);
       } finally {
-        exitBatchMode(); // TỰ ĐỘNG THOÁT CHẾ ĐỘ CHỌN NHIỀU
+        exitBatchMode();
       }
     }
 
