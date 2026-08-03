@@ -322,19 +322,9 @@
   <div id="pdfRenderContainer">
     <div id="pdfRenderArea">
       
-      <!-- LOGO ZEMA CÁCH ĐIỆU CỰC NÉT BẰNG SVG -->
+      <!-- LOGO ZEMA MỚI -->
       <div style="margin-bottom: 6px;">
-        <svg width="160" height="40" viewBox="0 0 160 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <!-- Khung logo chữ Z nghiêng -->
-          <rect x="0" y="2" width="36" height="36" rx="9" fill="#000000" />
-          <text x="9" y="28" font-family="'Arial Black', 'Impact', sans-serif" font-size="25" font-weight="900" font-style="italic" fill="#FFFFFF">Z</text>
-          
-          <!-- Chữ ZEMA cách điệu -->
-          <text x="44" y="28" font-family="'Arial Black', 'Impact', sans-serif" font-size="25" font-weight="900" font-style="italic" fill="#000000" letter-spacing="2">ZEMA</text>
-          
-          <!-- Đường thanh điểm nhấn phía dưới -->
-          <path d="M 44 33 L 140 33" stroke="#000000" stroke-width="2.5" stroke-linecap="round"/>
-        </svg>
+        <img src="Gemini_Generated_Image_fs8c7yfs8c7yfs8c.png" alt="ZEMA Logo" style="height: 38px; object-fit: contain; display: block;" />
       </div>
 
       <div style="font-size: 13px; color: #000000; margin-bottom: 10px;" id="pdfBranchText">Tên CN:..</div>
@@ -393,16 +383,16 @@
 
   <script>
     // ==========================================
-    // 💥 DÁN MÃ FIREBASE CONFIG CỦA ÔNG VÀO ĐÂY 💥
+    // 💥 FIREBASE CONFIG 💥
     // ==========================================
     const firebaseConfig = {
-      apiKey: "AIzaSyATkvZNedy1vDx-yupT0IFUrImit-jTYkk",
+     apiKey: "AIzaSyATkvZNedy1vDx-yupT0IFUrImit-jTYkk",
   authDomain: "zemar-2b24e.firebaseapp.com",
   projectId: "zemar-2b24e",
   storageBucket: "zemar-2b24e.firebasestorage.app",
   messagingSenderId: "901360040870",
   appId: "1:901360040870:web:485de54f94d60a81526d67",
-  measurementId: "G-6F6EM849R8"
+  measurementId: "G-6F6EM849R8""
     };
 
     // Khởi tạo Firebase
@@ -770,9 +760,9 @@
             });
           } catch (err) {
             alert("⚠️ Lỗi lưu ảnh lên Cloud: " + err.message);
-          } opacity: 1;
-            tempPhotosMap.delete(tempId);
-            renderPhotosGrid();
+          }
+          tempPhotosMap.delete(tempId);
+          renderPhotosGrid();
         })();
       };
 
