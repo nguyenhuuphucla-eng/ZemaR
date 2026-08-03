@@ -81,14 +81,6 @@
 </head>
 <body class="min-h-screen flex flex-col justify-between pb-10">
 
-  <!-- Màn hình Loading -->
-  <div id="ocrLoadingModal" class="fixed inset-0 bg-black/80 z-50 hidden flex flex-col items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-700 p-5 rounded-2xl flex flex-col items-center gap-3 text-center shadow-2xl max-w-xs w-full">
-      <div class="w-8 h-8 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
-      <p id="ocrLoadingText" class="font-bold text-pink-400 text-xs">Đang nén & đẩy ảnh lên Cloud Google...</p>
-    </div>
-  </div>
-
   <!-- Header chọn Chi Nhánh -->
   <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-4 shadow-xl">
     <div class="max-w-md mx-auto flex items-center justify-between gap-3">
@@ -170,7 +162,7 @@
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageCapture(event)">
       </div>
 
-      <!-- Thanh chọn nhiều ảnh -->
+      <!-- Thanh chọn nhiều ảnh (Đã tối ưu chỉ dùng Nút Share & Xóa) -->
       <div id="batchBar" class="hidden bg-slate-900 border border-pink-500/40 rounded-xl p-2.5 flex flex-col gap-2 shadow-lg">
         <div class="flex items-center justify-between">
           <button onclick="toggleSelectAll()" class="bg-slate-800 hover:bg-slate-700 text-pink-400 text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 border border-pink-500/30">
@@ -181,13 +173,10 @@
         </div>
 
         <div class="flex gap-2 pt-1 border-t border-slate-800">
-          <button onclick="batchSaveToPhotos()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1">
-            <i data-lucide="download" class="w-3.5 h-3.5"></i> Lưu Album
-          </button>
-          <button onclick="batchShare()" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1">
+          <button onclick="batchShare()" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform">
             <i data-lucide="share-2" class="w-3.5 h-3.5"></i> Chia Sẻ
           </button>
-          <button onclick="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-2 rounded-lg font-bold flex items-center justify-center gap-1">
+          <button onclick="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Xóa
           </button>
         </div>
@@ -205,7 +194,7 @@
 
   </main>
 
-  <!-- Viewer Xem Ảnh Phóng To (Chạm zoom & kéo bằng tay) -->
+  <!-- Viewer Xem Ảnh Phóng To (Đã gỡ nút Lưu, giữ nút Chia sẻ) -->
   <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4">
     <div class="flex justify-between items-center text-white z-10">
       <div class="flex gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-700">
@@ -217,16 +206,15 @@
       <button onclick="closeModal()" class="p-2 bg-slate-800/80 rounded-full text-slate-300"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
 
-    <!-- Màn hình hiển thị ảnh hỗ trợ chạm zoom/kéo -->
+    <!-- Màn hình hiển thị ảnh hỗ trợ chạm zoom/kéo bằng tay -->
     <div id="modalImgContainer" class="flex-1 flex items-center justify-center overflow-hidden my-auto w-full relative">
       <img id="modalImg" class="max-h-[75vh] max-w-full object-contain" alt="Preview">
     </div>
 
     <!-- Thanh công cụ bên dưới -->
     <div class="flex justify-around items-center bg-slate-900/90 backdrop-blur-md rounded-2xl py-3 border border-slate-800 z-10">
-      <button onclick="saveSingleToPhotos()" class="flex flex-col items-center text-emerald-400 text-xs gap-1 font-semibold"><i data-lucide="download" class="w-5 h-5 text-emerald-400"></i> Lưu về máy</button>
-      <button onclick="shareSingleImage()" class="flex flex-col items-center text-pink-400 text-xs gap-1 font-semibold"><i data-lucide="share-2" class="w-5 h-5 text-pink-400"></i> Chia sẻ</button>
-      <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1 font-semibold"><i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa</button>
+      <button onclick="shareSingleImage()" class="flex flex-col items-center text-pink-400 text-xs gap-1 font-semibold px-6 py-1"><i data-lucide="share-2" class="w-5 h-5 text-pink-400"></i> Chia sẻ</button>
+      <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1 font-semibold px-6 py-1"><i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa</button>
     </div>
   </div>
 
@@ -265,11 +253,14 @@
 
     let isCalendarOpen = false;
     let currentFolderPhotosCache = [];
+    let lastCloudPhotosCache = [];
+    let tempPhotosMap = new Map(); // Lưu ảnh tạm đang nạp ngầm
+
     let isBatchMode = false;
     let selectedImageIds = new Set();
     let activeModalImgId = null;
 
-    // Biến điều khiển Zoom & Pan (Vuốt bằng tay)
+    // Biến điều khiển Zoom & Pan
     let scale = 1, posX = 0, posY = 0;
     let startX = 0, startY = 0;
     let initialDist = 0, initialScale = 1;
@@ -367,6 +358,11 @@
         console.error("Lỗi tải lịch:", err);
       }
 
+      // Thêm cả ngày đang có ảnh tạm chưa đẩy lên xong
+      tempPhotosMap.forEach(p => {
+        if (p.branch === currentBranch) datesWithPhotos.add(p.date);
+      });
+
       const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
       const totalDays = new Date(calendarYear, calendarMonth + 1, 0).getDate();
 
@@ -409,95 +405,114 @@
         }
       });
       exitBatchMode();
-      listenToCloudPhotos();
+      renderPhotosGrid();
     }
 
     function listenToCloudPhotos() {
-      const grid = document.getElementById('imageGrid');
-      const emptyState = document.getElementById('emptyState');
-
       firestore.collection("photos")
         .where("branch", "==", currentBranch)
         .where("date", "==", selectedDate)
         .onSnapshot((snapshot) => {
-          const allPhotos = [];
+          const cloudPhotos = [];
           snapshot.forEach(doc => {
-            allPhotos.push({ id: doc.id, ...doc.data() });
+            cloudPhotos.push({ id: doc.id, ...doc.data() });
           });
-
-          document.getElementById('count-tat_ca').innerText = `(${allPhotos.length})`;
-          document.getElementById('count-may').innerText = `(${allPhotos.filter(p => p.folder === 'may').length})`;
-          document.getElementById('count-phieu_sua').innerText = `(${allPhotos.filter(p => p.folder === 'phieu_sua').length})`;
-          document.getElementById('count-hoa_don').innerText = `(${allPhotos.filter(p => p.folder === 'hoa_don').length})`;
-
-          if (currentFolder === 'tat_ca') {
-            currentFolderPhotosCache = allPhotos;
-          } else {
-            currentFolderPhotosCache = allPhotos.filter(p => p.folder === currentFolder);
-          }
-
-          grid.innerHTML = "";
-          if (currentFolderPhotosCache.length === 0) {
-            emptyState.classList.remove('hidden');
-            return;
-          }
-          emptyState.classList.add('hidden');
-
-          currentFolderPhotosCache.forEach(photo => {
-            const card = document.createElement('div');
-            card.className = "relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg cursor-pointer select-none active:scale-95 transition-transform";
-
-            const imgContainer = document.createElement('div');
-            imgContainer.className = "relative aspect-square bg-slate-950";
-
-            const img = document.createElement('img');
-            img.src = photo.dataUrl;
-            img.className = "w-full h-full object-cover pointer-events-none";
-
-            const checkOverlay = document.createElement('div');
-            checkOverlay.className = `absolute top-2 right-2 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${selectedImageIds.has(photo.id) ? 'bg-pink-500 border-pink-500' : 'bg-black/40'}`;
-            if (selectedImageIds.has(photo.id)) checkOverlay.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-white"></i>`;
-
-            imgContainer.appendChild(img);
-            imgContainer.appendChild(checkOverlay);
-            card.appendChild(imgContainer);
-
-            let pressTimer = null;
-            let isLongPress = false;
-
-            const startPress = () => {
-              isLongPress = false;
-              pressTimer = setTimeout(() => {
-                isLongPress = true;
-                if (navigator.vibrate) navigator.vibrate(40);
-                toggleBatchSelect(photo.id);
-              }, 500);
-            };
-
-            const cancelPress = () => {
-              if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-            };
-
-            card.addEventListener('touchstart', startPress, { passive: true });
-            card.addEventListener('touchend', cancelPress);
-            card.addEventListener('touchmove', cancelPress, { passive: true });
-
-            card.addEventListener('mousedown', startPress);
-            card.addEventListener('mouseup', cancelPress);
-            card.addEventListener('mouseleave', cancelPress);
-
-            card.onclick = () => {
-              if (isLongPress) { isLongPress = false; return; }
-              if (isBatchMode) { toggleBatchSelect(photo.id); }
-              else { openSingleImageModal(photo); }
-            };
-
-            grid.appendChild(card);
-          });
-          lucide.createIcons();
+          lastCloudPhotosCache = cloudPhotos;
+          renderPhotosGrid();
         }, (error) => {
           console.error("Lỗi Cloud:", error);
         });
+    }
+
+    // RENDER LƯỚI ẢNH (KẾT HỢP ẢNH TẠM + ẢNH CLOUD)
+    function renderPhotosGrid() {
+      const grid = document.getElementById('imageGrid');
+      const emptyState = document.getElementById('emptyState');
+
+      const tempPhotos = Array.from(tempPhotosMap.values()).filter(
+        p => p.branch === currentBranch && p.date === selectedDate
+      );
+
+      const allPhotos = [...tempPhotos, ...lastCloudPhotosCache];
+
+      document.getElementById('count-tat_ca').innerText = `(${allPhotos.length})`;
+      document.getElementById('count-may').innerText = `(${allPhotos.filter(p => p.folder === 'may').length})`;
+      document.getElementById('count-phieu_sua').innerText = `(${allPhotos.filter(p => p.folder === 'phieu_sua').length})`;
+      document.getElementById('count-hoa_don').innerText = `(${allPhotos.filter(p => p.folder === 'hoa_don').length})`;
+
+      if (currentFolder === 'tat_ca') {
+        currentFolderPhotosCache = allPhotos;
+      } else {
+        currentFolderPhotosCache = allPhotos.filter(p => p.folder === currentFolder);
+      }
+
+      grid.innerHTML = "";
+      if (currentFolderPhotosCache.length === 0) {
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+
+      currentFolderPhotosCache.forEach(photo => {
+        const card = document.createElement('div');
+        card.className = "relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg cursor-pointer select-none active:scale-95 transition-transform";
+
+        const imgContainer = document.createElement('div');
+        imgContainer.className = "relative aspect-square bg-slate-950";
+
+        const img = document.createElement('img');
+        img.src = photo.dataUrl;
+        img.className = "w-full h-full object-cover pointer-events-none";
+
+        // Thẻ thông báo đang nạp ngầm
+        if (photo.isUploading) {
+          const badge = document.createElement('div');
+          badge.className = "absolute top-2 left-2 bg-pink-600/90 text-white text-[9px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 shadow-md animate-pulse z-10";
+          badge.innerHTML = `<div class="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Đang tải lên...`;
+          imgContainer.appendChild(badge);
+        }
+
+        const checkOverlay = document.createElement('div');
+        checkOverlay.className = `absolute top-2 right-2 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${selectedImageIds.has(photo.id) ? 'bg-pink-500 border-pink-500' : 'bg-black/40'}`;
+        if (selectedImageIds.has(photo.id)) checkOverlay.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-white"></i>`;
+
+        imgContainer.appendChild(img);
+        imgContainer.appendChild(checkOverlay);
+        card.appendChild(imgContainer);
+
+        let pressTimer = null;
+        let isLongPress = false;
+
+        const startPress = () => {
+          isLongPress = false;
+          pressTimer = setTimeout(() => {
+            isLongPress = true;
+            if (navigator.vibrate) navigator.vibrate(40);
+            toggleBatchSelect(photo.id);
+          }, 500);
+        };
+
+        const cancelPress = () => {
+          if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+        };
+
+        card.addEventListener('touchstart', startPress, { passive: true });
+        card.addEventListener('touchend', cancelPress);
+        card.addEventListener('touchmove', cancelPress, { passive: true });
+
+        card.addEventListener('mousedown', startPress);
+        card.addEventListener('mouseup', cancelPress);
+        card.addEventListener('mouseleave', cancelPress);
+
+        card.onclick = () => {
+          if (isLongPress) { isLongPress = false; return; }
+          if (isBatchMode) { toggleBatchSelect(photo.id); }
+          else { openSingleImageModal(photo); }
+        };
+
+        grid.appendChild(card);
+      });
+      lucide.createIcons();
     }
 
     function triggerCameraInput() { document.getElementById('cameraInput').click(); }
@@ -536,44 +551,67 @@
       } catch (err) { return "may"; }
     }
 
+    // =======================================================
+    // 📸 CHỤP ẢNH TỨC THÌ & ĐẨY CLOUD NGẦM (OPTIMISTIC UI)
+    // =======================================================
     async function handleImageCapture(event) {
       const file = event.target.files[0];
       if (!file) return;
 
       const captureBranch = currentBranch;
-      const loadingModal = document.getElementById('ocrLoadingModal');
-      document.getElementById('ocrLoadingText').innerText = "Đang nén & đẩy ảnh lên Cloud Google...";
-      loadingModal.classList.remove('hidden');
+      const now = new Date();
+      const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+      const dateKey = now.toISOString().split('T')[0];
 
       const reader = new FileReader();
       reader.onload = async (e) => {
-        try {
-          const rawDataUrl = e.target.result;
-          const now = new Date();
-          const dateFormatted = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
-          const dateKey = now.toISOString().split('T')[0];
+        const rawDataUrl = e.target.result;
+        event.target.value = ""; // Đặt lại để sẵn sàng chụp tấm tiếp theo
 
-          const detectedFolder = await autoDetectFolderWithOCR(rawDataUrl);
-          const stampedDataUrl = await addWatermarkToImage(rawDataUrl, captureBranch, dateFormatted);
+        // 1. Tạo Watermark cực nhanh trong bộ nhớ (~0.1 giây)
+        const stampedDataUrl = await addWatermarkToImage(rawDataUrl, captureBranch, dateFormatted);
 
-          await firestore.collection("photos").add({
-            branch: captureBranch,
-            date: dateKey,
-            folder: detectedFolder,
-            capturedDate: dateFormatted,
-            dataUrl: stampedDataUrl,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
+        // 2. Chuyển sang ngày hôm nay trên giao diện
+        selectedDate = dateKey;
 
-          selectedDate = dateKey;
-          switchFolder(detectedFolder);
-          renderCalendar();
-        } catch (err) {
-          alert("❌ Lỗi tải ảnh: " + err.message);
-        } finally {
-          loadingModal.classList.add('hidden');
-          event.target.value = "";
-        }
+        // 3. HIỂN THỊ ẢNH LÊN MÀN HÌNH LẬP TỨC (< 0.2 GIÂY)
+        const tempId = "temp_" + Date.now();
+        const tempPhoto = {
+          id: tempId,
+          branch: captureBranch,
+          date: dateKey,
+          folder: "may", // Mặc định hiện tạm ở mục Máy
+          capturedDate: dateFormatted,
+          dataUrl: stampedDataUrl,
+          isUploading: true
+        };
+
+        tempPhotosMap.set(tempId, tempPhoto);
+        renderCalendar();
+        renderPhotosGrid();
+
+        // 4. XỬ LÝ OCR QUÉT LOẠI VÀ ĐẨY CLOUD BÊN DƯỚI NGẦM
+        (async () => {
+          try {
+            const detectedFolder = await autoDetectFolderWithOCR(rawDataUrl);
+
+            await firestore.collection("photos").add({
+              branch: captureBranch,
+              date: dateKey,
+              folder: detectedFolder,
+              capturedDate: dateFormatted,
+              dataUrl: stampedDataUrl,
+              createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+          } catch (err) {
+            console.error("Lỗi đẩy Cloud ngầm:", err);
+            alert("⚠️ Lỗi lưu ảnh lên Cloud: " + err.message);
+          } finally {
+            // Xóa ảnh tạm khi Cloud đã đồng bộ thành công
+            tempPhotosMap.delete(tempId);
+            renderPhotosGrid();
+          }
+        })();
       };
 
       reader.readAsDataURL(file);
@@ -634,7 +672,6 @@
         if (e.touches.length === 1) {
           const now = new Date().getTime();
           if (now - lastTapTime < 300) {
-            // Nhấp kép (Double tap)
             if (scale > 1) { scale = 1; posX = 0; posY = 0; }
             else { scale = 2.5; posX = 0; posY = 0; }
             updateImgTransform();
@@ -703,12 +740,19 @@
     }
 
     async function changeImageFolder(newFolder) {
-      if (!activeModalImgId) return;
+      if (!activeModalImgId || activeModalImgId.startsWith("temp_")) return;
       await firestore.collection("photos").doc(activeModalImgId).update({ folder: newFolder });
       closeModal();
     }
 
     async function deleteSingleImage() {
+      if (!activeModalImgId) return;
+      if (activeModalImgId.startsWith("temp_")) {
+        tempPhotosMap.delete(activeModalImgId);
+        closeModal();
+        renderPhotosGrid();
+        return;
+      }
       if (!confirm("Xóa vĩnh viễn hình ảnh này trên Cloud?")) return;
       await firestore.collection("photos").doc(activeModalImgId).delete();
       closeModal();
@@ -716,30 +760,12 @@
     }
 
     // =======================================================
-    // 📥 TÍNH NĂNG LƯU VỀ MÁY & CHIA SẺ NATIVE
+    // 📲 CHIA SẺ NATIVE BẰNG MENU ĐIỆN THOẠI
     // =======================================================
     async function dataUrlToFile(dataUrl, filename) {
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       return new File([blob], filename, { type: blob.type || 'image/jpeg' });
-    }
-
-    function downloadDataUrl(dataUrl, filename) {
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    }
-
-    async function saveSingleToPhotos() {
-      if (!activeModalImgId) return;
-      const photo = currentFolderPhotosCache.find(p => p.id === activeModalImgId);
-      if (!photo) return;
-      
-      const filename = `ZemaR_${photo.branch}_${photo.date}.jpg`;
-      downloadDataUrl(photo.dataUrl, filename);
     }
 
     async function shareSingleImage() {
@@ -756,10 +782,10 @@
             files: [file]
           });
         } else {
-          downloadDataUrl(photo.dataUrl, filename);
+          alert("Trình duyệt thiết bị của ông không hỗ trợ chia sẻ trực tiếp.");
         }
       } catch (err) {
-        if (err.name !== 'AbortError') downloadDataUrl(photo.dataUrl, filename);
+        console.log("Hủy chia sẻ:", err);
       }
     }
 
@@ -772,7 +798,7 @@
       else {
         document.getElementById('batchBar').classList.remove('hidden');
         document.getElementById('batchCount').innerText = selectedImageIds.size;
-        listenToCloudPhotos();
+        renderPhotosGrid();
       }
     }
 
@@ -786,7 +812,7 @@
         currentFolderPhotosCache.forEach(p => selectedImageIds.add(p.id));
         document.getElementById('batchBar').classList.remove('hidden');
         document.getElementById('batchCount').innerText = selectedImageIds.size;
-        listenToCloudPhotos();
+        renderPhotosGrid();
       }
     }
 
@@ -794,20 +820,7 @@
       isBatchMode = false;
       selectedImageIds.clear();
       document.getElementById('batchBar').classList.add('hidden');
-      listenToCloudPhotos();
-    }
-
-    async function batchSaveToPhotos() {
-      if (selectedImageIds.size === 0) return;
-      const selectedPhotos = currentFolderPhotosCache.filter(p => selectedImageIds.has(p.id));
-
-      let count = 0;
-      for (let photo of selectedPhotos) {
-        count++;
-        const filename = `ZemaR_${photo.branch}_${photo.date}_${count}.jpg`;
-        downloadDataUrl(photo.dataUrl, filename);
-        await new Promise(r => setTimeout(r, 300));
-      }
+      renderPhotosGrid();
     }
 
     async function batchShare() {
@@ -828,18 +841,21 @@
             files: files
           });
         } else {
-          alert("Trình duyệt thiết bị không hỗ trợ chia sẻ đồng thời nhiều tệp. Đang chuyển sang tải về máy...");
-          batchSaveToPhotos();
+          alert("Trình duyệt thiết bị không hỗ trợ chia sẻ đồng thời nhiều tệp.");
         }
       } catch (err) {
-        if (err.name !== 'AbortError') batchSaveToPhotos();
+        console.log("Hủy chia sẻ:", err);
       }
     }
 
     async function batchDelete() {
       if (!confirm(`Xóa vĩnh viễn ${selectedImageIds.size} ảnh đã chọn trên Cloud?`)) return;
       for (let id of selectedImageIds) {
-        await firestore.collection("photos").doc(id).delete();
+        if (id.startsWith("temp_")) {
+          tempPhotosMap.delete(id);
+        } else {
+          await firestore.collection("photos").doc(id).delete();
+        }
       }
       exitBatchMode();
       renderCalendar();
