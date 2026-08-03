@@ -194,7 +194,7 @@
 
   </main>
 
-  <!-- Viewer Xem Ảnh Phóng To (Hỗ trợ Vuốt Trái/Phải & Bấm Điều Hướng) -->
+  <!-- Viewer Xem Ảnh Phóng To -->
   <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4 select-none">
     <div class="flex justify-between items-center text-white z-10">
       <div class="flex items-center gap-2">
@@ -210,14 +210,12 @@
 
     <!-- Màn hình hiển thị ảnh chính & 2 nút điều hướng mũi tên -->
     <div id="modalImgContainer" class="flex-1 flex items-center justify-center overflow-hidden my-auto w-full relative">
-      <!-- Nút xem ảnh trước đó -->
       <button onclick="navigateModalPhoto(-1)" class="absolute left-1 z-20 bg-slate-900/60 hover:bg-slate-900 border border-slate-700/50 text-white p-2.5 rounded-full active:scale-95 transition-all">
         <i data-lucide="chevron-left" class="w-6 h-6"></i>
       </button>
 
       <img id="modalImg" class="max-h-[75vh] max-w-full object-contain" alt="Preview">
 
-      <!-- Nút xem ảnh kế tiếp -->
       <button onclick="navigateModalPhoto(1)" class="absolute right-1 z-20 bg-slate-900/60 hover:bg-slate-900 border border-slate-700/50 text-white p-2.5 rounded-full active:scale-95 transition-all">
         <i data-lucide="chevron-right" class="w-6 h-6"></i>
       </button>
@@ -663,7 +661,7 @@
     }
 
     // =======================================================
-    // 🖐️ XỬ LÝ CẢM ỨNG CẢM ỨNG CHẠM ZOOM & VUỐT CHUYỂN ẢNH
+    // 🖐️ XỬ LÝ CẢM ỨNG CHẠM ZOOM & VUỐT CHUYỂN ẢNH
     // =======================================================
     function initTouchZoomPan() {
       const img = document.getElementById('modalImg');
@@ -717,17 +715,15 @@
           scale = 1; posX = 0; posY = 0;
           updateImgTransform();
 
-          // Xử lý vuốt chuyển ảnh khi không zoom
           if (e.changedTouches && e.changedTouches.length === 1) {
             const swipeEndX = e.changedTouches[0].clientX;
             const swipeEndY = e.changedTouches[0].clientY;
             const diffX = swipeEndX - swipeStartX;
             const diffY = swipeEndY - swipeStartY;
 
-            // Nếu vuốt ngang > 40px và nghiêng ngang nhiều hơn dọc
             if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
-              if (diffX < 0) navigateModalPhoto(1);  // Vuốt trái -> Xem ảnh kế tiếp
-              else navigateModalPhoto(-1);           // Vuốt phải -> Xem ảnh trước đó
+              if (diffX < 0) navigateModalPhoto(1);
+              else navigateModalPhoto(-1);
             }
           }
         }
@@ -798,7 +794,7 @@
     }
 
     // =======================================================
-    // 📲 CHIA SẺ NATIVE BẰNG MENU ĐIỆN THOẠI
+    // 📲 CHIA SẺ NATIVE BẰNG MENU ĐIỆN THOẠI & THOÁT TỰ ĐỘNG
     // =======================================================
     async function dataUrlToFile(dataUrl, filename) {
       const res = await fetch(dataUrl);
@@ -854,13 +850,15 @@
       }
     }
 
+    // SỬA CÚ PHÁP TỰ ĐỘNG THOÁT VÀ ẨN THANH CHỌN
     function exitBatchMode() {
       isBatchMode = false;
       selectedImageIds.clear();
-      document.getElementById('batchBar').classList.hidden = true;
+      document.getElementById('batchBar').classList.add('hidden');
       renderPhotosGrid();
     }
 
+    // SỬA HÀM CHIA SẺ BỔ SUNG FINALLY TỰ ĐỘNG THOÁT
     async function batchShare() {
       if (selectedImageIds.size === 0) return;
       const selectedPhotos = currentFolderPhotosCache.filter(p => selectedImageIds.has(p.id));
@@ -882,7 +880,9 @@
           alert("Trình duyệt thiết bị không hỗ trợ chia sẻ đồng thời nhiều tệp.");
         }
       } catch (err) {
-        console.log("Hủy chia sẻ:", err);
+        console.log("Hủy hoặc hoàn tất chia sẻ:", err);
+      } finally {
+        exitBatchMode(); // TỰ ĐỘNG THOÁT CHẾ ĐỘ CHỌN NHIỀU
       }
     }
 
