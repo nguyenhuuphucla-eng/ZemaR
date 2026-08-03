@@ -162,7 +162,7 @@
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageCapture(event)">
       </div>
 
-      <!-- Thanh chọn nhiều ảnh (Đã tối ưu chỉ dùng Nút Share & Xóa) -->
+      <!-- Thanh chọn nhiều ảnh -->
       <div id="batchBar" class="hidden bg-slate-900 border border-pink-500/40 rounded-xl p-2.5 flex flex-col gap-2 shadow-lg">
         <div class="flex items-center justify-between">
           <button onclick="toggleSelectAll()" class="bg-slate-800 hover:bg-slate-700 text-pink-400 text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 border border-pink-500/30">
@@ -194,21 +194,33 @@
 
   </main>
 
-  <!-- Viewer Xem Ảnh Phóng To (Đã gỡ nút Lưu, giữ nút Chia sẻ) -->
-  <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4">
+  <!-- Viewer Xem Ảnh Phóng To (Hỗ trợ Vuốt Trái/Phải & Bấm Điều Hướng) -->
+  <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4 select-none">
     <div class="flex justify-between items-center text-white z-10">
-      <div class="flex gap-1.5 bg-slate-900/90 p-1 rounded-xl border border-slate-700">
-        <span class="text-[10px] text-slate-400 flex items-center px-1 font-semibold">Mục:</span>
-        <button onclick="changeImageFolder('may')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Máy</button>
-        <button onclick="changeImageFolder('phieu_sua')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Phiếu Sửa</button>
-        <button onclick="changeImageFolder('hoa_don')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Hóa Đơn</button>
+      <div class="flex items-center gap-2">
+        <span id="modalImageCounter" class="bg-slate-800 text-pink-400 text-xs font-bold px-2.5 py-1 rounded-xl border border-slate-700">0/0</span>
+        <div class="flex gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-700">
+          <button onclick="changeImageFolder('may')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Máy</button>
+          <button onclick="changeImageFolder('phieu_sua')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Phiếu Sửa</button>
+          <button onclick="changeImageFolder('hoa_don')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Hóa Đơn</button>
+        </div>
       </div>
       <button onclick="closeModal()" class="p-2 bg-slate-800/80 rounded-full text-slate-300"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
 
-    <!-- Màn hình hiển thị ảnh hỗ trợ chạm zoom/kéo bằng tay -->
+    <!-- Màn hình hiển thị ảnh chính & 2 nút điều hướng mũi tên -->
     <div id="modalImgContainer" class="flex-1 flex items-center justify-center overflow-hidden my-auto w-full relative">
+      <!-- Nút xem ảnh trước đó -->
+      <button onclick="navigateModalPhoto(-1)" class="absolute left-1 z-20 bg-slate-900/60 hover:bg-slate-900 border border-slate-700/50 text-white p-2.5 rounded-full active:scale-95 transition-all">
+        <i data-lucide="chevron-left" class="w-6 h-6"></i>
+      </button>
+
       <img id="modalImg" class="max-h-[75vh] max-w-full object-contain" alt="Preview">
+
+      <!-- Nút xem ảnh kế tiếp -->
+      <button onclick="navigateModalPhoto(1)" class="absolute right-1 z-20 bg-slate-900/60 hover:bg-slate-900 border border-slate-700/50 text-white p-2.5 rounded-full active:scale-95 transition-all">
+        <i data-lucide="chevron-right" class="w-6 h-6"></i>
+      </button>
     </div>
 
     <!-- Thanh công cụ bên dưới -->
@@ -254,15 +266,17 @@
     let isCalendarOpen = false;
     let currentFolderPhotosCache = [];
     let lastCloudPhotosCache = [];
-    let tempPhotosMap = new Map(); // Lưu ảnh tạm đang nạp ngầm
+    let tempPhotosMap = new Map();
 
     let isBatchMode = false;
     let selectedImageIds = new Set();
     let activeModalImgId = null;
+    let currentModalIndex = -1;
 
-    // Biến điều khiển Zoom & Pan
+    // Biến điều khiển Zoom, Pan & Vuốt
     let scale = 1, posX = 0, posY = 0;
     let startX = 0, startY = 0;
+    let swipeStartX = 0, swipeStartY = 0;
     let initialDist = 0, initialScale = 1;
     let lastTapTime = 0;
 
@@ -358,7 +372,6 @@
         console.error("Lỗi tải lịch:", err);
       }
 
-      // Thêm cả ngày đang có ảnh tạm chưa đẩy lên xong
       tempPhotosMap.forEach(p => {
         if (p.branch === currentBranch) datesWithPhotos.add(p.date);
       });
@@ -424,7 +437,6 @@
         });
     }
 
-    // RENDER LƯỚI ẢNH (KẾT HỢP ẢNH TẠM + ẢNH CLOUD)
     function renderPhotosGrid() {
       const grid = document.getElementById('imageGrid');
       const emptyState = document.getElementById('emptyState');
@@ -464,7 +476,6 @@
         img.src = photo.dataUrl;
         img.className = "w-full h-full object-cover pointer-events-none";
 
-        // Thẻ thông báo đang nạp ngầm
         if (photo.isUploading) {
           const badge = document.createElement('div');
           badge.className = "absolute top-2 left-2 bg-pink-600/90 text-white text-[9px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 shadow-md animate-pulse z-10";
@@ -551,9 +562,6 @@
       } catch (err) { return "may"; }
     }
 
-    // =======================================================
-    // 📸 CHỤP ẢNH TỨC THÌ & ĐẨY CLOUD NGẦM (OPTIMISTIC UI)
-    // =======================================================
     async function handleImageCapture(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -566,21 +574,17 @@
       const reader = new FileReader();
       reader.onload = async (e) => {
         const rawDataUrl = e.target.result;
-        event.target.value = ""; // Đặt lại để sẵn sàng chụp tấm tiếp theo
+        event.target.value = "";
 
-        // 1. Tạo Watermark cực nhanh trong bộ nhớ (~0.1 giây)
         const stampedDataUrl = await addWatermarkToImage(rawDataUrl, captureBranch, dateFormatted);
-
-        // 2. Chuyển sang ngày hôm nay trên giao diện
         selectedDate = dateKey;
 
-        // 3. HIỂN THỊ ẢNH LÊN MÀN HÌNH LẬP TỨC (< 0.2 GIÂY)
         const tempId = "temp_" + Date.now();
         const tempPhoto = {
           id: tempId,
           branch: captureBranch,
           date: dateKey,
-          folder: "may", // Mặc định hiện tạm ở mục Máy
+          folder: "may",
           capturedDate: dateFormatted,
           dataUrl: stampedDataUrl,
           isUploading: true
@@ -590,7 +594,6 @@
         renderCalendar();
         renderPhotosGrid();
 
-        // 4. XỬ LÝ OCR QUÉT LOẠI VÀ ĐẨY CLOUD BÊN DƯỚI NGẦM
         (async () => {
           try {
             const detectedFolder = await autoDetectFolderWithOCR(rawDataUrl);
@@ -604,10 +607,8 @@
               createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
           } catch (err) {
-            console.error("Lỗi đẩy Cloud ngầm:", err);
             alert("⚠️ Lỗi lưu ảnh lên Cloud: " + err.message);
           } finally {
-            // Xóa ảnh tạm khi Cloud đã đồng bộ thành công
             tempPhotosMap.delete(tempId);
             renderPhotosGrid();
           }
@@ -662,7 +663,7 @@
     }
 
     // =======================================================
-    // 🖐️ XỬ LÝ CẢM ỨNG CHẠM ZOOM 2 NGÓN & KÉO DI CHUYỂN ẢNH
+    // 🖐️ XỬ LÝ CẢM ỨNG CẢM ỨNG CHẠM ZOOM & VUỐT CHUYỂN ẢNH
     // =======================================================
     function initTouchZoomPan() {
       const img = document.getElementById('modalImg');
@@ -681,6 +682,9 @@
           lastTapTime = now;
           startX = e.touches[0].clientX - posX;
           startY = e.touches[0].clientY - posY;
+
+          swipeStartX = e.touches[0].clientX;
+          swipeStartY = e.touches[0].clientY;
         } else if (e.touches.length === 2) {
           initialDist = Math.hypot(
             e.touches[0].clientX - e.touches[1].clientX,
@@ -708,10 +712,24 @@
         }
       }, { passive: true });
 
-      img.addEventListener('touchend', () => {
+      img.addEventListener('touchend', (e) => {
         if (scale <= 1) {
           scale = 1; posX = 0; posY = 0;
           updateImgTransform();
+
+          // Xử lý vuốt chuyển ảnh khi không zoom
+          if (e.changedTouches && e.changedTouches.length === 1) {
+            const swipeEndX = e.changedTouches[0].clientX;
+            const swipeEndY = e.changedTouches[0].clientY;
+            const diffX = swipeEndX - swipeStartX;
+            const diffY = swipeEndY - swipeStartY;
+
+            // Nếu vuốt ngang > 40px và nghiêng ngang nhiều hơn dọc
+            if (Math.abs(diffX) > 40 && Math.abs(diffX) > Math.abs(diffY)) {
+              if (diffX < 0) navigateModalPhoto(1);  // Vuốt trái -> Xem ảnh kế tiếp
+              else navigateModalPhoto(-1);           // Vuốt phải -> Xem ảnh trước đó
+            }
+          }
         }
       });
     }
@@ -727,15 +745,35 @@
     }
 
     function openSingleImageModal(photo) {
-      activeModalImgId = photo.id;
-      document.getElementById('modalImg').src = photo.dataUrl;
-      resetZoomPan();
+      currentModalIndex = currentFolderPhotosCache.findIndex(p => p.id === photo.id);
+      showModalImageAtIndex(currentModalIndex);
       document.getElementById('imageModal').classList.remove('hidden');
+    }
+
+    function showModalImageAtIndex(index) {
+      if (!currentFolderPhotosCache || currentFolderPhotosCache.length === 0) return;
+      if (index < 0 || index >= currentFolderPhotosCache.length) return;
+
+      currentModalIndex = index;
+      const photo = currentFolderPhotosCache[currentModalIndex];
+      activeModalImgId = photo.id;
+
+      document.getElementById('modalImg').src = photo.dataUrl;
+      document.getElementById('modalImageCounter').innerText = `${currentModalIndex + 1}/${currentFolderPhotosCache.length}`;
+      resetZoomPan();
+    }
+
+    function navigateModalPhoto(direction) {
+      const newIndex = currentModalIndex + direction;
+      if (newIndex >= 0 && newIndex < currentFolderPhotosCache.length) {
+        showModalImageAtIndex(newIndex);
+      }
     }
 
     function closeModal() {
       document.getElementById('imageModal').classList.add('hidden');
       activeModalImgId = null;
+      currentModalIndex = -1;
       resetZoomPan();
     }
 
@@ -782,7 +820,7 @@
             files: [file]
           });
         } else {
-          alert("Trình duyệt thiết bị của ông không hỗ trợ chia sẻ trực tiếp.");
+          alert("Trình duyệt thiết bị không hỗ trợ chia sẻ trực tiếp.");
         }
       } catch (err) {
         console.log("Hủy chia sẻ:", err);
@@ -819,7 +857,7 @@
     function exitBatchMode() {
       isBatchMode = false;
       selectedImageIds.clear();
-      document.getElementById('batchBar').classList.add('hidden');
+      document.getElementById('batchBar').classList.hidden = true;
       renderPhotosGrid();
     }
 
