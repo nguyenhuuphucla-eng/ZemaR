@@ -828,10 +828,16 @@
       });
     }
 
-    // HÀM HỖ TRỢ GÁN NHANH DỮ LIỆU
+    // HÀM HỖ TRỢ GÁN & NỐI CHUỖI NHANH DỮ LIỆU
     function setQuickValue(inputId, value) {
       const input = document.getElementById(inputId);
-      if (input) input.value = value;
+      if (input) {
+        if (input.value.trim() !== "") {
+          input.value = input.value + ", " + value;
+        } else {
+          input.value = value;
+        }
+      }
     }
 
     function renderFormRows() {
@@ -866,11 +872,12 @@
               </div>
             </div>
 
-            <!-- Ô XÁC NHẬN BÊN SỬA & NÚT BẤM NHANH -->
+            <!-- Ô XÁC NHẬN BÊN SỬA & NÚT BẤM NHANH (ĐÃ TÁCH TỪNG MỤC RIÊNG) -->
             <div class="space-y-1">
               <input type="text" id="row_xacnhan_${i}" placeholder="Xác nhận bên sửa chữa" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
               <div class="flex gap-1 overflow-x-auto pt-0.5 pb-1">
-                <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Đã sửa xong, hoạt động bình thường')" class="chip-btn">Đã sửa xong</button>
+                <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Đã sửa xong')" class="chip-btn">Đã sửa xong</button>
+                <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Hoạt động bình thường')" class="chip-btn">HĐ bình thường</button>
                 <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Chờ linh kiện')" class="chip-btn">Chờ linh kiện</button>
                 <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Chuyển về 40')" class="chip-btn">Chuyển về 40</button>
               </div>
