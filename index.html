@@ -322,9 +322,9 @@
   <div id="pdfRenderContainer">
     <div id="pdfRenderArea">
       
-      <!-- LOGO ZEMA CHÍNH XÁC TỪ HÌNH ẢNH CỦA ÔNG (ĐÃ TỰ ĐỘNG CHUYỂN SANG DẠNG ẢNH ONLINE ĐỂ HIỆN SẮC NÉT) -->
+      <!-- LẤY TRỰC TIẾP FILE LOGO GỐC zema-logo.png TRÊN GITHUB -->
       <div style="margin-bottom: 6px;">
-        <img id="pdfLogoImg" src="" alt="ZEMA Logo" style="height: 38px; max-width: 180px; object-fit: contain; display: block;" />
+        <img src="./zema-logo.png" alt="ZEMA Logo" style="height: 38px; max-width: 180px; object-fit: contain; display: block;" />
       </div>
 
       <div style="font-size: 13px; color: #000000; margin-bottom: 10px;" id="pdfBranchText">Tên CN:..</div>
@@ -382,41 +382,6 @@
   </div>
 
   <script>
-    // Tự vẽ ảnh Logo Zema gốc thành Canvas chuẩn nền trắng cắt sát chữ
-    function generateZemaLogoBase64() {
-      const canvas = document.createElement('canvas');
-      canvas.width = 400;
-      canvas.height = 100;
-      const ctx = canvas.getContext('2d');
-
-      ctx.fillStyle = "#FFFFFF";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      ctx.fillStyle = "#000000";
-      ctx.font = "900 italic 62px 'Arial Black', sans-serif";
-      
-      // Chữ ZE
-      ctx.fillText("ZE", 10, 72);
-      
-      // Chữ M uốn lượn
-      ctx.font = "bold italic 60px 'Brush Script MT', 'Segoe Script', cursive, sans-serif";
-      ctx.fillText("M", 115, 72);
-
-      // Chữ A có gạch chéo
-      ctx.font = "900 italic 62px 'Arial Black', sans-serif";
-      ctx.fillText("A", 175, 72);
-
-      // Dấu gạch nhọn góc phải chữ A
-      ctx.beginPath();
-      ctx.moveTo(225, 42);
-      ctx.lineTo(255, 48);
-      ctx.lineTo(235, 58);
-      ctx.closePath();
-      ctx.fill();
-
-      return canvas.toDataURL('image/png');
-    }
-
     // FIREBASE CONFIG
     const firebaseConfig = {
       apiKey: "AIzaSyATkvZNedy1vDx-yupT0IFUrImit-jTYkk",
@@ -463,9 +428,6 @@
     let lastTapTime = 0;
 
     window.addEventListener('DOMContentLoaded', async () => {
-      // Set logo
-      document.getElementById('pdfLogoImg').src = generateZemaLogoBase64();
-      
       lucide.createIcons();
       initBranches();
       await renderCalendar();
