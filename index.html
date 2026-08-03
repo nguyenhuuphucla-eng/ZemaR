@@ -322,12 +322,10 @@
   <div id="pdfRenderContainer">
     <div id="pdfRenderArea">
       
-      <!-- LẤY TRỰC TIẾP FILE LOGO GỐC zema-logo.png TRÊN GITHUB -->
-      <!-- MỚI (Vừa vặn, tinh tế): -->
-<div style="margin-bottom: 8px; text-align: left;">
-  <img src="./zema-logo.png" alt="ZEMA Logo" style="height: 45px; max-width: 200px; object-fit: contain; display: block; margin-left: 0; mix-blend-mode: multiply;" />
-</div>
-    
+      <!-- LOGO TỰ ĐỘNG XÓA NỀN & DỊCH SANG TRÁI VỪA VẶN -->
+      <div style="margin-bottom: 8px; text-align: left;">
+        <img src="./zema-logo.png" alt="ZEMA Logo" style="height: 45px; max-width: 200px; object-fit: contain; display: block; margin-left: 0; mix-blend-mode: multiply;" />
+      </div>
 
       <div style="font-size: 13px; color: #000000; margin-bottom: 10px;" id="pdfBranchText">Tên CN:..</div>
 
@@ -825,7 +823,7 @@
               <input type="text" id="row_ten_${i}" placeholder="Tên Máy" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
             </div>
             <div class="grid grid-cols-3 gap-1.5 text-xs">
-              <input type="text" id="row_sl_${i}" value="1" placeholder="SL" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_sl_${i}" placeholder="SL (Để trống tự động = 1)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
               <input type="text" id="row_phong_${i}" placeholder="Phòng/Ban" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
               <input type="text" id="row_trangthai_${i}" placeholder="Hiện Trạng" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
             </div>
@@ -871,7 +869,10 @@
         const ma = document.getElementById(`row_ma_${i}`).value.trim();
         const ten = document.getElementById(`row_ten_${i}`).value.trim();
         const slInput = document.getElementById(`row_sl_${i}`).value.trim();
-        const sl = slInput || "1";
+        
+        // CẬP NHẬT LOGIC SL: Chỉ khi nào có điền Mã Tài Sản mới hiển thị SL (Mặc định = 1 nếu không nhập khác)
+        const sl = ma ? (slInput || "1") : "";
+        
         const phong = document.getElementById(`row_phong_${i}`).value.trim();
         const hientrang = document.getElementById(`row_trangthai_${i}`).value.trim();
         const xacnhan = document.getElementById(`row_xacnhan_${i}`).value.trim();
