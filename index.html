@@ -85,6 +85,25 @@
       user-select: text !important;
     }
 
+    /* Khung Nút Bấm Nhanh (Chips) */
+    .chip-btn {
+      background-color: #1e293b;
+      color: #38bdf8;
+      border: 1px solid #0284c7;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 8px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .chip-btn:active {
+      transform: scale(0.92);
+      background-color: #0284c7;
+      color: #ffffff;
+    }
+
     /* Khung A4 Cố định để xuất 1 trang duy nhất */
     #pdfRenderContainer {
       position: absolute;
@@ -272,8 +291,8 @@
 
       <!-- Danh sách máy -->
       <div class="space-y-2">
-        <span class="text-xs font-bold text-slate-300 block">Danh Sách Máy Sửa (Nhập 1 - 10 máy):</span>
-        <div id="formRowsContainer" class="space-y-3 max-h-[38vh] overflow-y-auto pr-1">
+        <span class="text-xs font-bold text-slate-300 block">Danh Sách Máy Sửa (Bấm nút bên dưới để điền nhanh):</span>
+        <div id="formRowsContainer" class="space-y-3 max-h-[42vh] overflow-y-auto pr-1">
         </div>
       </div>
 
@@ -809,6 +828,12 @@
       });
     }
 
+    // HÀM HỖ TRỢ GÁN NHANH DỮ LIỆU
+    function setQuickValue(inputId, value) {
+      const input = document.getElementById(inputId);
+      if (input) input.value = value;
+    }
+
     function renderFormRows() {
       const container = document.getElementById('formRowsContainer');
       container.innerHTML = "";
@@ -818,16 +843,39 @@
             <div class="flex justify-between items-center text-[11px] font-bold text-pink-400 border-b border-slate-800/80 pb-1">
               <span>MÁY MỤC #${i}</span>
             </div>
+
             <div class="grid grid-cols-2 gap-2 text-xs">
               <input type="text" id="row_ma_${i}" placeholder="Mã Tài Sản" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
               <input type="text" id="row_ten_${i}" placeholder="Tên Máy" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
             </div>
-            <div class="grid grid-cols-3 gap-1.5 text-xs">
-              <input type="text" id="row_sl_${i}" placeholder="SL (Để trống tự động = 1)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <input type="text" id="row_sl_${i}" placeholder="SL (Tự động = 1)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
               <input type="text" id="row_phong_${i}" placeholder="Phòng/Ban" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
-              <input type="text" id="row_trangthai_${i}" placeholder="Hiện Trạng" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
             </div>
-            <input type="text" id="row_xacnhan_${i}" placeholder="Xác nhận tình trạng máy (Bộ phận sửa)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
+
+            <!-- Ô HIỆN TRẠNG & NÚT BẤM NHANH -->
+            <div class="space-y-1">
+              <input type="text" id="row_trangthai_${i}" placeholder="Hiện Trạng (Ví dụ: Hư, Không chạy...)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
+              <div class="flex gap-1 overflow-x-auto pt-0.5 pb-1">
+                <button type="button" onclick="setQuickValue('row_trangthai_${i}', 'Hư')" class="chip-btn">Hư</button>
+                <button type="button" onclick="setQuickValue('row_trangthai_${i}', 'Không chạy')" class="chip-btn">Không chạy</button>
+                <button type="button" onclick="setQuickValue('row_trangthai_${i}', 'Không lạnh')" class="chip-btn">Không lạnh</button>
+                <button type="button" onclick="setQuickValue('row_trangthai_${i}', 'Không ra tia')" class="chip-btn">Không ra tia</button>
+                <button type="button" onclick="setQuickValue('row_trangthai_${i}', 'Không nóng')" class="chip-btn">Không nóng</button>
+              </div>
+            </div>
+
+            <!-- Ô XÁC NHẬN BÊN SỬA & NÚT BẤM NHANH -->
+            <div class="space-y-1">
+              <input type="text" id="row_xacnhan_${i}" placeholder="Xác nhận bên sửa chữa" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
+              <div class="flex gap-1 overflow-x-auto pt-0.5 pb-1">
+                <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Đã sửa xong, hoạt động bình thường')" class="chip-btn">Đã sửa xong</button>
+                <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Chờ linh kiện')" class="chip-btn">Chờ linh kiện</button>
+                <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Chuyển về 40')" class="chip-btn">Chuyển về 40</button>
+              </div>
+            </div>
+
           </div>
         `;
       }
