@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v1.2)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,9 +15,6 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
-  <!-- Thư viện Quét Mã QR từ Ảnh (jsQR) -->
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
 
   <!-- Thư viện Xuất PDF A4 Chuẩn -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -126,7 +123,7 @@
     }
   </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between pb-10">
+<body class="min-h-screen flex flex-col justify-between pb-6">
 
   <!-- Header chọn Chi Nhánh -->
   <header class="sticky top-0 z-40 bg-slate-900/95 backdrop-blur-md border-b border-slate-800 px-4 py-4 shadow-xl">
@@ -245,6 +242,11 @@
 
   </main>
 
+  <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
+  <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
+    Zema R <span class="text-pink-500 font-bold">v1.2</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+  </footer>
+
   <!-- MODAL FORM NHẬP PHIẾU SỬA CHỮA MÁY -->
   <div id="formModal" class="fixed inset-0 bg-black/90 z-50 hidden flex flex-col justify-between p-4 overflow-y-auto">
     <div class="max-w-md mx-auto w-full bg-slate-900 border border-slate-800 rounded-2xl p-4 space-y-4 shadow-2xl">
@@ -256,10 +258,10 @@
         <button onclick="closeFormModal()" class="text-slate-400 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
-      <!-- Trạng thái quét AI -->
+      <!-- Trạng thái quét OCR chữ in -->
       <div id="qrScanStatus" class="hidden bg-emerald-950/80 border border-emerald-500/50 p-2.5 rounded-xl text-emerald-400 text-xs font-semibold flex items-center gap-2">
         <div class="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shrink-0"></div>
-        <span id="qrScanStatusText">Đang quét ảnh đọc mã QR...</span>
+        <span id="qrScanStatusText">Đang quét chữ in trên tem tài sản...</span>
       </div>
 
       <!-- Thông tin chung -->
@@ -314,7 +316,7 @@
     </div>
   </div>
 
-  <!-- INPUT CHỤP TRỰC TIẾP TEM QR CHO TỪNG DÒNG -->
+  <!-- INPUT CHỤP TRỰC TIẾP TEM CHO TỪNG DÒNG -->
   <input type="file" id="directQRInput" accept="image/*" capture="environment" class="hidden" onchange="handleDirectQRScan(event)">
 
   <!-- VIEWER XEM ẢNH -->
@@ -868,12 +870,13 @@
 
       const reader = new FileReader();
       reader.onload = async (e) => {
-        const qrContent = await scanQRCodeFromDataUrl(e.target.result);
-        if (qrContent) {
-          parseAndFillQRData(qrContent, targetDirectRowIndex);
-          alert(`✅ Đã nhận diện thành công máy cho mục #${targetDirectRowIndex}!`);
+        const ocrData = await scanTextFromLabelImage(e.target.result);
+        if (ocrData && (ocrData.code5 || ocrData.machineName)) {
+          if (ocrData.code5) document.getElementById(`row_ma_${targetDirectRowIndex}`).value = ocrData.code5;
+          if (ocrData.machineName) document.getElementById(`row_ten_${targetDirectRowIndex}`).value = ocrData.machineName;
+          alert(`✅ Đã đọc thành công thông tin tem cho mục #${targetDirectRowIndex}!`);
         } else {
-          alert("❌ Không đọc được mã QR. Hãy đưa camera lại gần tem QR hơn nhé!");
+          alert("❌ Chưa nhận diện rõ chữ trên tem. Hãy đưa camera gần và rõ nét hơn nhé!");
         }
         event.target.value = "";
       };
@@ -889,7 +892,7 @@
             <div class="flex justify-between items-center text-[11px] font-bold text-pink-400 border-b border-slate-800/80 pb-1">
               <span>MÁY MỤC #${i}</span>
               <button type="button" onclick="triggerDirectQRScan(${i})" class="text-[10px] bg-pink-600/80 hover:bg-pink-600 text-white font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow">
-                <i data-lucide="qr-code" class="w-3 h-3"></i> Chụp tem QR mục này
+                <i data-lucide="camera" class="w-3 h-3"></i> Chụp tem máy mục này
               </button>
             </div>
 
@@ -932,96 +935,46 @@
       lucide.createIcons();
     }
 
-    // THUẬT TOÁN ĐỌC QR SIÊU NHẠY VỚI MULTI-CROP VÀ NHỊ BĂNG HÓA
-    function scanQRCodeFromDataUrl(dataUrl) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = () => {
-          const testCanvas = document.createElement('canvas');
-          const ctx = testCanvas.getContext('2d', { willReadFrequently: true });
+    // THUẬT TOÁN OCR CHUYÊN ĐỌC CHỮ IN TRÊN TEM TÀI SẢN (MÃ & TÊN MÁY)
+    async function scanTextFromLabelImage(dataUrl) {
+      try {
+        if (!ocrWorker) ocrWorker = await Tesseract.createWorker('vie');
+        const ret = await ocrWorker.recognize(dataUrl);
+        const rawText = ret.data.text || "";
 
-          // Hàm hỗ trợ quét 1 vùng canvas
-          const tryScanCanvas = (c) => {
-            const context = c.getContext('2d');
-            const imgData = context.getImageData(0, 0, c.width, c.height);
-            if (typeof jsQR !== 'undefined') {
-              const res = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "both" });
-              if (res && res.data) return res.data;
-            }
-            return null;
-          };
+        // Tách các dòng
+        const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
 
-          // 1. Quét Toàn Bộ Ảnh ở các quy mô tỷ lệ
-          const scales = [1000, 600, 400];
-          for (let s of scales) {
-            let w = img.width;
-            let h = img.height;
-            if (w > s || h > s) {
-              if (w > h) { h = Math.round((h * s) / w); w = s; }
-              else { w = Math.round((w * s) / h); h = s; }
-            }
-            testCanvas.width = w;
-            testCanvas.height = h;
-            ctx.drawImage(img, 0, 0, w, h);
+        let code5 = "";
+        let machineName = "";
 
-            let qr = tryScanCanvas(testCanvas);
-            if (qr) return resolve(qr);
-
-            // 2. Thử Nhị Băng Hóa (Grayscale + Binarization) tăng tương phản
-            const imgData = ctx.getImageData(0, 0, w, h);
-            const d = imgData.data;
-            for (let i = 0; i < d.length; i += 4) {
-              let avg = (d[i] + d[i + 1] + d[i + 2]) / 3;
-              let v = avg > 120 ? 255 : 0;
-              d[i] = v; d[i + 1] = v; d[i + 2] = v;
-            }
-            ctx.putImageData(imgData, 0, 0);
-            qr = tryScanCanvas(testCanvas);
-            if (qr) return resolve(qr);
+        // 1. Lọc lấy Mã Tài Sản (Tìm chuỗi in hoa có dãy số dài như MBNNL000033387)
+        for (let line of lines) {
+          const match = line.match(/[A-Z0-9]{8,}/);
+          if (match) {
+            let fullCode = match[0];
+            code5 = fullCode.length >= 5 ? fullCode.slice(-5) : fullCode;
+            break;
           }
+        }
 
-          // 3. Quét Vùng Tâm (Center Zoom Crop) - Nơi hay chứa QR nhất
-          const cropSizes = [0.6, 0.4];
-          for (let factor of cropSizes) {
-            const cropW = Math.round(img.width * factor);
-            const cropH = Math.round(img.height * factor);
-            const startX = Math.round((img.width - cropW) / 2);
-            const startY = Math.round((img.height - cropH) / 2);
-
-            testCanvas.width = 500;
-            testCanvas.height = 500;
-            ctx.drawImage(img, startX, startY, cropW, cropH, 0, 0, 500, 500);
-
-            let qr = tryScanCanvas(testCanvas);
-            if (qr) return resolve(qr);
+        // 2. Lọc lấy Tên Máy (Tìm dòng có chứa chữ "Máy" hoặc "máy")
+        for (let line of lines) {
+          if (line.toLowerCase().includes("máy") || line.toLowerCase().includes("may")) {
+            if (line.includes(',')) {
+              machineName = line.split(',')[1].trim();
+            } else {
+              machineName = line.trim();
+            }
+            break;
           }
+        }
 
-          resolve(null);
-        };
-        img.onerror = () => resolve(null);
-        img.src = dataUrl;
-      });
-    }
-
-    function parseAndFillQRData(qrContent, rowIndex) {
-      if (!qrContent) return;
-      // Chuỗi QR mẫu Zema: "MBNNL000033387\nMBNNL , Máy bắn nano lớn"
-      const lines = qrContent.split('\n').map(l => l.trim()).filter(l => l);
-      let fullMa = lines[0] || "";
-      let rawNameLine = lines[1] || lines[0] || "";
-
-      let code5 = fullMa.length >= 5 ? fullMa.slice(-5) : fullMa;
-
-      let machineName = "";
-      if (rawNameLine.includes(',')) {
-        machineName = rawNameLine.split(',')[1].trim();
-      } else {
-        machineName = rawNameLine.replace(fullMa, '').trim();
+        return { code5, machineName };
+      } catch (err) {
+        console.error("OCR Label Error:", err);
+        return null;
       }
-
-      document.getElementById(`row_ma_${rowIndex}`).value = code5;
-      document.getElementById(`row_ten_${rowIndex}`).value = machineName;
     }
 
     async function openFormModal() {
@@ -1042,7 +995,7 @@
       const statusElem = document.getElementById('qrScanStatus');
       const statusTextElem = document.getElementById('qrScanStatusText');
       statusElem.classList.remove('hidden');
-      statusTextElem.innerText = "Đang áp dụng AI quét ảnh tìm tem QR...";
+      statusTextElem.innerText = "Đang quét chữ in trên tem tài sản...";
 
       const tempPhotos = Array.from(tempPhotosMap.values()).filter(
         p => p.branch === currentBranch && p.date === today
@@ -1055,16 +1008,15 @@
 
       for (let photo of allTodayPhotos) {
         if (rowIndex > 10) break;
-        const qrContent = await scanQRCodeFromDataUrl(photo.dataUrl);
+        const ocrData = await scanTextFromLabelImage(photo.dataUrl);
 
-        if (qrContent) {
-          const lines = qrContent.split('\n').map(l => l.trim()).filter(l => l);
-          let fullMa = lines[0] || "";
-          let code5 = fullMa.length >= 5 ? fullMa.slice(-5) : fullMa;
+        if (ocrData && (ocrData.code5 || ocrData.machineName)) {
+          if (ocrData.code5 && !scannedCodesSet.has(ocrData.code5)) {
+            scannedCodesSet.add(ocrData.code5);
 
-          if (!scannedCodesSet.has(code5)) {
-            scannedCodesSet.add(code5);
-            parseAndFillQRData(qrContent, rowIndex);
+            if (ocrData.code5) document.getElementById(`row_ma_${rowIndex}`).value = ocrData.code5;
+            if (ocrData.machineName) document.getElementById(`row_ten_${rowIndex}`).value = ocrData.machineName;
+
             scannedCount++;
             rowIndex++;
           }
@@ -1072,10 +1024,10 @@
       }
 
       if (scannedCount > 0) {
-        statusTextElem.innerText = `🎉 Đã nhận diện & tự điền ${scannedCount} máy từ tem QR!`;
+        statusTextElem.innerText = `🎉 Đã tự động đọc & điền ${scannedCount} máy từ chữ in trên tem!`;
         setTimeout(() => statusElem.classList.add('hidden'), 3500);
       } else {
-        statusTextElem.innerText = "Chưa nhận diện được QR từ thư viện ảnh. Ông có thể bấm nút 'Chụp tem QR mục này' bên dưới để quét nhé!";
+        statusTextElem.innerText = "Chưa đọc được chữ tem. Ông có thể bấm 'Chụp tem máy mục này' để quét trực tiếp nhé!";
         setTimeout(() => statusElem.classList.add('hidden'), 4000);
       }
     }
