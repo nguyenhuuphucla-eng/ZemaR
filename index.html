@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v1.3)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v1.4)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -16,8 +16,8 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-  <!-- Thư viện Quét Mã QR từ Ảnh (jsQR) -->
-  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <!-- Thư viện Quét Mã QR Trực Tiếp từ Camera Live (Html5Qrcode) -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 
   <!-- Thư viện Xuất PDF A4 Chuẩn -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -123,6 +123,12 @@
       color: #000000;
       font-family: Arial, Helvetica, sans-serif;
       overflow: hidden;
+    }
+
+    /* Khung Quét Camera Live */
+    #liveScannerModal video {
+      object-fit: cover !important;
+      border-radius: 1rem;
     }
   </style>
 </head>
@@ -247,7 +253,7 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v1.3</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v1.4</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
   <!-- MODAL FORM NHẬP PHIẾU SỬA CHỮA MÁY -->
@@ -259,12 +265,6 @@
           <h2 class="text-base font-bold text-pink-500 uppercase tracking-wide">TẠO PHIẾU ĐỀ XUẤT SỬA CHỮA MÁY</h2>
         </div>
         <button onclick="closeFormModal()" class="text-slate-400 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
-      </div>
-
-      <!-- Trạng thái quét AI Nâng Cao -->
-      <div id="qrScanStatus" class="hidden bg-emerald-950/80 border border-emerald-500/50 p-2.5 rounded-xl text-emerald-400 text-xs font-semibold flex items-center gap-2">
-        <div class="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shrink-0"></div>
-        <span id="qrScanStatusText">Đang tối ưu ảnh & nhận diện tem...</span>
       </div>
 
       <!-- Thông tin chung -->
@@ -319,8 +319,27 @@
     </div>
   </div>
 
-  <!-- INPUT CHỤP TRỰC TIẾP TEM CHO TỪNG DÒNG -->
-  <input type="file" id="directQRInput" accept="image/*" capture="environment" class="hidden" onchange="handleDirectQRScan(event)">
+  <!-- MODAL QUÉT CAMERA LIVE THEO THỜI GIAN THỰC -->
+  <div id="liveScannerModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col items-center justify-between p-4">
+    <div class="w-full max-w-md flex justify-between items-center text-white pt-2">
+      <span class="text-sm font-bold text-pink-500 flex items-center gap-1.5">
+        <i data-lucide="qr-code" class="w-4 h-4"></i> RỌI CAMERA VÀO TEM MÁY
+      </span>
+      <button onclick="stopLiveScanner()" class="bg-slate-800 p-2 rounded-full text-slate-300">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Khung Camera Live -->
+    <div class="w-full max-w-md relative my-auto">
+      <div id="qr-reader" class="w-full rounded-2xl overflow-hidden border-2 border-pink-500/50 shadow-2xl"></div>
+      <p class="text-center text-xs text-slate-400 mt-3 font-semibold">Giữ yên máy ảnh rọi vào tem QR để ứng dụng tự nhận diện và tự đóng.</p>
+    </div>
+
+    <div class="w-full max-w-md pb-4">
+      <button onclick="stopLiveScanner()" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 rounded-xl text-xs">Hủy Quét</button>
+    </div>
+  </div>
 
   <!-- VIEWER XEM ẢNH -->
   <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4 select-none">
@@ -466,7 +485,8 @@
     let initialDist = 0, initialScale = 1;
     let lastTapTime = 0;
 
-    let targetDirectRowIndex = null;
+    let html5QrcodeScanner = null;
+    let targetLiveRowIndex = null;
 
     window.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
@@ -862,28 +882,63 @@
       }
     }
 
-    function triggerDirectQRScan(rowIndex) {
-      targetDirectRowIndex = rowIndex;
-      document.getElementById('directQRInput').click();
+    // XỬ LÝ QUÉT CAMERA LIVE THEO THỜI GIAN THỰC
+    function startLiveScanner(rowIndex) {
+      targetLiveRowIndex = rowIndex;
+      document.getElementById('liveScannerModal').classList.remove('hidden');
+
+      if (!html5QrcodeScanner) {
+        html5QrcodeScanner = new Html5Qrcode("qr-reader");
+      }
+
+      const config = { fps: 15, qrbox: { width: 250, height: 250 } };
+
+      html5QrcodeScanner.start(
+        { facingMode: "environment" },
+        config,
+        (decodedText) => {
+          // BỐC TÁCH MÃ 5 SỐ VÀ TÊN MÁY TỪ QUÉT LIVE TEM ZEMA
+          if (decodedText) {
+            if (navigator.vibrate) navigator.vibrate(100);
+
+            const lines = decodedText.split('\n').map(l => l.trim()).filter(l => l);
+            let fullMa = lines[0] || "";
+            let rawNameLine = lines[1] || lines[0] || "";
+
+            let code5 = fullMa.length >= 5 ? fullMa.slice(-5) : fullMa;
+
+            let machineName = "";
+            if (rawNameLine.includes(',')) {
+              machineName = rawNameLine.split(',')[1].trim();
+            } else {
+              machineName = rawNameLine.replace(fullMa, '').trim();
+            }
+
+            document.getElementById(`row_ma_${targetLiveRowIndex}`).value = code5;
+            document.getElementById(`row_ten_${targetLiveRowIndex}`).value = machineName;
+
+            stopLiveScanner();
+          }
+        },
+        (errorMessage) => {
+          // Quét live liên tục, bỏ qua các frame không nhận diện được
+        }
+      ).catch(err => {
+        alert("Lỗi mở camera: " + err);
+        stopLiveScanner();
+      });
     }
 
-    async function handleDirectQRScan(event) {
-      const file = event.target.files[0];
-      if (!file || !targetDirectRowIndex) return;
-
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const resData = await smartScanLabelAndQR(e.target.result);
-        if (resData && (resData.code5 || resData.machineName)) {
-          if (resData.code5) document.getElementById(`row_ma_${targetDirectRowIndex}`).value = resData.code5;
-          if (resData.machineName) document.getElementById(`row_ten_${targetDirectRowIndex}`).value = resData.machineName;
-          alert(`✅ Đã nhận diện thông tin cho mục #${targetDirectRowIndex}!`);
-        } else {
-          alert("❌ Không nhận diện được tem. Bạn có thể chọn tên máy từ danh sách bấm nhanh bên dưới!");
-        }
-        event.target.value = "";
-      };
-      reader.readAsDataURL(file);
+    function stopLiveScanner() {
+      if (html5QrcodeScanner) {
+        html5QrcodeScanner.stop().then(() => {
+          document.getElementById('liveScannerModal').classList.add('hidden');
+        }).catch(() => {
+          document.getElementById('liveScannerModal').classList.add('hidden');
+        });
+      } else {
+        document.getElementById('liveScannerModal').classList.add('hidden');
+      }
     }
 
     function renderFormRows() {
@@ -894,22 +949,14 @@
           <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 space-y-2">
             <div class="flex justify-between items-center text-[11px] font-bold text-pink-400 border-b border-slate-800/80 pb-1">
               <span>MÁY MỤC #${i}</span>
-              <button type="button" onclick="triggerDirectQRScan(${i})" class="text-[10px] bg-pink-600/80 hover:bg-pink-600 text-white font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow">
-                <i data-lucide="camera" class="w-3 h-3"></i> Chụp tem mục này
+              <button type="button" onclick="startLiveScanner(${i})" class="text-[10px] bg-pink-600/90 hover:bg-pink-600 text-white font-bold px-2 py-1 rounded-md flex items-center gap-1 shadow active:scale-95 transition-transform">
+                <i data-lucide="qr-code" class="w-3.5 h-3.5"></i> 📷 Quét Live Tem Máy
               </button>
             </div>
 
             <div class="grid grid-cols-2 gap-2 text-xs">
               <input type="text" id="row_ma_${i}" placeholder="Mã Tài Sản" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
               <input type="text" id="row_ten_${i}" placeholder="Tên Máy" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
-            </div>
-
-            <!-- NÚT CHỌN TÊN MÁY NHANH -->
-            <div class="flex gap-1 overflow-x-auto pt-0.5 pb-1">
-              <button type="button" onclick="setQuickValue('row_ten_${i}', 'Máy bắn nano lớn')" class="chip-btn">Máy bắn nano lớn</button>
-              <button type="button" onclick="setQuickValue('row_ten_${i}', 'Máy triệt lông')" class="chip-btn">Máy triệt lông</button>
-              <button type="button" onclick="setQuickValue('row_ten_${i}', 'Máy RF')" class="chip-btn">Máy RF</button>
-              <button type="button" onclick="setQuickValue('row_ten_${i}', 'Máy Oxy')" class="chip-btn">Máy Oxy</button>
             </div>
 
             <div class="grid grid-cols-2 gap-2 text-xs">
@@ -946,74 +993,8 @@
       lucide.createIcons();
     }
 
-    // THUẬT TOÁN KẾT HỢP SMART SCAN (QR + OCR + TIỀN XỬ LÝ LÀM NÉT)
-    async function smartScanLabelAndQR(dataUrl) {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
-        img.onload = async () => {
-          let code5 = "";
-          let machineName = "";
-
-          // 1. Thử đọc Mã QR trước bằng jsQR
-          const canvas = document.createElement('canvas');
-          const ctx = canvas.getContext('2d');
-          canvas.width = 600;
-          canvas.height = Math.round((img.height * 600) / img.width);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-          if (typeof jsQR !== 'undefined') {
-            const qr = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "both" });
-            if (qr && qr.data) {
-              const lines = qr.data.split('\n').map(l => l.trim()).filter(l => l);
-              let fullMa = lines[0] || "";
-              let rawNameLine = lines[1] || lines[0] || "";
-              code5 = fullMa.length >= 5 ? fullMa.slice(-5) : fullMa;
-
-              if (rawNameLine.includes(',')) machineName = rawNameLine.split(',')[1].trim();
-              else machineName = rawNameLine.replace(fullMa, '').trim();
-
-              return resolve({ code5, machineName });
-            }
-          }
-
-          // 2. Nếu QR không ra, chuyển sang OCR đọc chữ in trên tem
-          try {
-            if (!ocrWorker) ocrWorker = await Tesseract.createWorker('vie');
-            const ret = await ocrWorker.recognize(canvas.toDataURL('image/jpeg', 0.9));
-            const rawText = ret.data.text || "";
-            const lines = rawText.split('\n').map(l => l.trim()).filter(l => l);
-
-            for (let line of lines) {
-              const match = line.match(/[A-Z0-9]{6,}/);
-              if (match) {
-                let fullCode = match[0];
-                code5 = fullCode.length >= 5 ? fullCode.slice(-5) : fullCode;
-                break;
-              }
-            }
-
-            for (let line of lines) {
-              const lower = line.toLowerCase();
-              if (lower.includes("máy") || lower.includes("may")) {
-                if (line.includes(',')) machineName = line.split(',')[1].trim();
-                else machineName = line.trim();
-                break;
-              }
-            }
-          } catch (e) { console.log(e); }
-
-          resolve({ code5, machineName });
-        };
-        img.onerror = () => resolve(null);
-        img.src = dataUrl;
-      });
-    }
-
     async function openFormModal() {
       document.getElementById('formBranch').value = currentBranch;
-      const today = selectedDate;
       const [y, m, d] = selectedDate.split('-');
       document.getElementById('formDateStr').value = `${d}/${m}/${y}`;
       document.getElementById('formBenSuaChua').value = "Nguyễn Hữu Phúc";
@@ -1025,45 +1006,6 @@
       }
 
       document.getElementById('formModal').classList.remove('hidden');
-
-      const statusElem = document.getElementById('qrScanStatus');
-      const statusTextElem = document.getElementById('qrScanStatusText');
-      statusElem.classList.remove('hidden');
-      statusTextElem.innerText = "Đang tối ưu ảnh & tự động nhận diện tem...";
-
-      const tempPhotos = Array.from(tempPhotosMap.values()).filter(
-        p => p.branch === currentBranch && p.date === today
-      );
-      const allTodayPhotos = [...tempPhotos, ...lastCloudPhotosCache.filter(p => p.date === today)];
-
-      let scannedCount = 0;
-      let rowIndex = 1;
-      const scannedCodesSet = new Set();
-
-      for (let photo of allTodayPhotos) {
-        if (rowIndex > 10) break;
-        const resData = await smartScanLabelAndQR(photo.dataUrl);
-
-        if (resData && (resData.code5 || resData.machineName)) {
-          if (resData.code5 && !scannedCodesSet.has(resData.code5)) {
-            scannedCodesSet.add(resData.code5);
-
-            if (resData.code5) document.getElementById(`row_ma_${rowIndex}`).value = resData.code5;
-            if (resData.machineName) document.getElementById(`row_ten_${rowIndex}`).value = resData.machineName;
-
-            scannedCount++;
-            rowIndex++;
-          }
-        }
-      }
-
-      if (scannedCount > 0) {
-        statusTextElem.innerText = `🎉 Đã tự động điền ${scannedCount} máy từ tem tài sản!`;
-        setTimeout(() => statusElem.classList.add('hidden'), 3500);
-      } else {
-        statusTextElem.innerText = "Chưa nhận diện tự động được. Bạn có thể dùng nút 'Chụp tem mục này' hoặc bấm nút gán nhanh Tên Máy bên dưới!";
-        setTimeout(() => statusElem.classList.add('hidden'), 4500);
-      }
     }
 
     function closeFormModal() {
