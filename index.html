@@ -256,10 +256,10 @@
         <button onclick="closeFormModal()" class="text-slate-400 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
-      <!-- Thông báo trạng thái quét QR -->
+      <!-- Trạng thái quét AI -->
       <div id="qrScanStatus" class="hidden bg-emerald-950/80 border border-emerald-500/50 p-2.5 rounded-xl text-emerald-400 text-xs font-semibold flex items-center gap-2">
         <div class="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shrink-0"></div>
-        <span id="qrScanStatusText">Đang quét ảnh hôm nay để đọc mã QR...</span>
+        <span id="qrScanStatusText">Đang quét ảnh đọc mã QR...</span>
       </div>
 
       <!-- Thông tin chung -->
@@ -300,7 +300,7 @@
 
       <!-- Danh sách máy -->
       <div class="space-y-2">
-        <span class="text-xs font-bold text-slate-300 block">Danh Sách Máy Sửa (Mã & Tên máy được quét tự động):</span>
+        <span class="text-xs font-bold text-slate-300 block">Danh Sách Máy Sửa:</span>
         <div id="formRowsContainer" class="space-y-3 max-h-[42vh] overflow-y-auto pr-1">
         </div>
       </div>
@@ -313,6 +313,9 @@
       </div>
     </div>
   </div>
+
+  <!-- INPUT CHỤP TRỰC TIẾP TEM QR CHO TỪNG DÒNG -->
+  <input type="file" id="directQRInput" accept="image/*" capture="environment" class="hidden" onchange="handleDirectQRScan(event)">
 
   <!-- VIEWER XEM ẢNH -->
   <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4 select-none">
@@ -349,20 +352,16 @@
   <!-- KHUNG MẪU XUẤT PDF TRỌN VẸN 1 TRANG -->
   <div id="pdfRenderContainer">
     <div id="pdfRenderArea">
-      
-      <!-- LOGO TỰ ĐỘNG XÓA NỀN & DỊCH SANG TRÁI VỪA VẶN -->
       <div style="margin-bottom: 8px; text-align: left;">
         <img src="./zema-logo.png" alt="ZEMA Logo" style="height: 45px; max-width: 200px; object-fit: contain; display: block; margin-left: 0; mix-blend-mode: multiply;" />
       </div>
 
       <div style="font-size: 13px; color: #000000; margin-bottom: 10px;" id="pdfBranchText">Tên CN:..</div>
 
-      <!-- TIÊU ĐỀ BẢN IN -->
       <div style="text-align: center; font-size: 18px; font-weight: bold; margin: 8px 0 16px 0; text-transform: uppercase; letter-spacing: 0.5px;">
         PHIẾU ĐỀ XUẤT SỬA CHỮA MÁY
       </div>
 
-      <!-- THÔNG TIN ĐỀ XUẤT VÀ BÊN SỬA CHỮA -->
       <div style="display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px;">
         <div style="width: 58%;">Người đề xuất: <span id="pdfNguoiDeXuat"></span></div>
         <div style="width: 40%;">Chức vụ: <span id="pdfChucVuDeXuat"></span></div>
@@ -373,7 +372,6 @@
         <div style="width: 40%;">Chức vụ: <span id="pdfChucVuSuaChua"></span></div>
       </div>
 
-      <!-- BẢNG CỘT TỜ PHIẾU ZEMA -->
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 12px; font-size: 11px; table-layout: fixed;">
         <thead>
           <tr style="text-align: center; font-weight: bold;">
@@ -390,12 +388,10 @@
         </tbody>
       </table>
 
-      <!-- NGÀY THÁNG NĂM -->
       <div style="text-align: right; font-size: 12px; font-style: italic; margin-bottom: 15px; padding-right: 15px;">
         <span id="pdfDateText">Ngày........, Tháng......., Năm 202...</span>
       </div>
 
-      <!-- CHỮ KÝ CỦA NGUỜI LẬP VÀ ĐỘI BẢO TRÌ -->
       <div style="display: flex; justify-content: space-around; text-align: center; font-size: 13px;">
         <div style="width: 40%;">
           <p style="font-weight: bold; margin: 0;">Người Lập Phiếu</p>
@@ -426,7 +422,6 @@
 
     const ADMIN_PASS = "0000";
 
-    // ĐÃ SỬA ĐÚNG TÊN "Bv Ngọc Dung 33 Nguyễn Bỉnh Khiêm"
     const DEFAULT_BRANCHES = [
       "Zema 190 3/2",
       "Zema Trường Chinh",
@@ -465,6 +460,8 @@
     let swipeStartX = 0, swipeStartY = 0;
     let initialDist = 0, initialScale = 1;
     let lastTapTime = 0;
+
+    let targetDirectRowIndex = null;
 
     window.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
@@ -860,6 +857,29 @@
       }
     }
 
+    function triggerDirectQRScan(rowIndex) {
+      targetDirectRowIndex = rowIndex;
+      document.getElementById('directQRInput').click();
+    }
+
+    async function handleDirectQRScan(event) {
+      const file = event.target.files[0];
+      if (!file || !targetDirectRowIndex) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const qrContent = await scanQRCodeFromDataUrl(e.target.result);
+        if (qrContent) {
+          parseAndFillQRData(qrContent, targetDirectRowIndex);
+          alert(`✅ Đã nhận diện thành công máy cho mục #${targetDirectRowIndex}!`);
+        } else {
+          alert("❌ Không đọc được mã QR. Hãy đưa camera lại gần tem QR hơn nhé!");
+        }
+        event.target.value = "";
+      };
+      reader.readAsDataURL(file);
+    }
+
     function renderFormRows() {
       const container = document.getElementById('formRowsContainer');
       container.innerHTML = "";
@@ -868,6 +888,9 @@
           <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 space-y-2">
             <div class="flex justify-between items-center text-[11px] font-bold text-pink-400 border-b border-slate-800/80 pb-1">
               <span>MÁY MỤC #${i}</span>
+              <button type="button" onclick="triggerDirectQRScan(${i})" class="text-[10px] bg-pink-600/80 hover:bg-pink-600 text-white font-bold px-2 py-0.5 rounded-md flex items-center gap-1 shadow">
+                <i data-lucide="qr-code" class="w-3 h-3"></i> Chụp tem QR mục này
+              </button>
             </div>
 
             <div class="grid grid-cols-2 gap-2 text-xs">
@@ -906,43 +929,99 @@
           </div>
         `;
       }
+      lucide.createIcons();
     }
 
-    // HÀM ĐỌC MÃ QR ĐƯỢC CẢI TIẾN (RESIZE ẢNH GIÚP AI ĐỌC CỰC NHẠY)
+    // THUẬT TOÁN ĐỌC QR SIÊU NHẠY VỚI MULTI-CROP VÀ NHỊ BĂNG HÓA
     function scanQRCodeFromDataUrl(dataUrl) {
       return new Promise((resolve) => {
         const img = new Image();
         img.crossOrigin = "anonymous";
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          // Resize ảnh xuống tối đa 800px để thư viện jsQR đọc nét và nhanh hơn
-          const MAX_SIZE = 800;
-          let w = img.width;
-          let h = img.height;
-          if (w > MAX_SIZE || h > MAX_SIZE) {
-            if (w > h) { h = Math.round((h * MAX_SIZE) / w); w = MAX_SIZE; }
-            else { w = Math.round((w * MAX_SIZE) / h); h = MAX_SIZE; }
-          }
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, w, h);
-          
-          const imageData = ctx.getImageData(0, 0, w, h);
-          if (typeof jsQR !== 'undefined') {
-            const code = jsQR(imageData.data, imageData.width, imageData.height, {
-              inversionAttempts: "dontInvert",
-            });
-            if (code && code.data) {
-              resolve(code.data);
-              return;
+          const testCanvas = document.createElement('canvas');
+          const ctx = testCanvas.getContext('2d', { willReadFrequently: true });
+
+          // Hàm hỗ trợ quét 1 vùng canvas
+          const tryScanCanvas = (c) => {
+            const context = c.getContext('2d');
+            const imgData = context.getImageData(0, 0, c.width, c.height);
+            if (typeof jsQR !== 'undefined') {
+              const res = jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: "both" });
+              if (res && res.data) return res.data;
             }
+            return null;
+          };
+
+          // 1. Quét Toàn Bộ Ảnh ở các quy mô tỷ lệ
+          const scales = [1000, 600, 400];
+          for (let s of scales) {
+            let w = img.width;
+            let h = img.height;
+            if (w > s || h > s) {
+              if (w > h) { h = Math.round((h * s) / w); w = s; }
+              else { w = Math.round((w * s) / h); h = s; }
+            }
+            testCanvas.width = w;
+            testCanvas.height = h;
+            ctx.drawImage(img, 0, 0, w, h);
+
+            let qr = tryScanCanvas(testCanvas);
+            if (qr) return resolve(qr);
+
+            // 2. Thử Nhị Băng Hóa (Grayscale + Binarization) tăng tương phản
+            const imgData = ctx.getImageData(0, 0, w, h);
+            const d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+              let avg = (d[i] + d[i + 1] + d[i + 2]) / 3;
+              let v = avg > 120 ? 255 : 0;
+              d[i] = v; d[i + 1] = v; d[i + 2] = v;
+            }
+            ctx.putImageData(imgData, 0, 0);
+            qr = tryScanCanvas(testCanvas);
+            if (qr) return resolve(qr);
           }
+
+          // 3. Quét Vùng Tâm (Center Zoom Crop) - Nơi hay chứa QR nhất
+          const cropSizes = [0.6, 0.4];
+          for (let factor of cropSizes) {
+            const cropW = Math.round(img.width * factor);
+            const cropH = Math.round(img.height * factor);
+            const startX = Math.round((img.width - cropW) / 2);
+            const startY = Math.round((img.height - cropH) / 2);
+
+            testCanvas.width = 500;
+            testCanvas.height = 500;
+            ctx.drawImage(img, startX, startY, cropW, cropH, 0, 0, 500, 500);
+
+            let qr = tryScanCanvas(testCanvas);
+            if (qr) return resolve(qr);
+          }
+
           resolve(null);
         };
         img.onerror = () => resolve(null);
         img.src = dataUrl;
       });
+    }
+
+    function parseAndFillQRData(qrContent, rowIndex) {
+      if (!qrContent) return;
+      // Chuỗi QR mẫu Zema: "MBNNL000033387\nMBNNL , Máy bắn nano lớn"
+      const lines = qrContent.split('\n').map(l => l.trim()).filter(l => l);
+      let fullMa = lines[0] || "";
+      let rawNameLine = lines[1] || lines[0] || "";
+
+      let code5 = fullMa.length >= 5 ? fullMa.slice(-5) : fullMa;
+
+      let machineName = "";
+      if (rawNameLine.includes(',')) {
+        machineName = rawNameLine.split(',')[1].trim();
+      } else {
+        machineName = rawNameLine.replace(fullMa, '').trim();
+      }
+
+      document.getElementById(`row_ma_${rowIndex}`).value = code5;
+      document.getElementById(`row_ten_${rowIndex}`).value = machineName;
     }
 
     async function openFormModal() {
@@ -953,7 +1032,6 @@
       document.getElementById('formBenSuaChua').value = "Nguyễn Hữu Phúc";
       document.getElementById('formChucVuSuaChua').value = "NVSC";
 
-      // Xóa trắng các ô nhập trước khi tự điền
       for (let i = 1; i <= 10; i++) {
         document.getElementById(`row_ma_${i}`).value = "";
         document.getElementById(`row_ten_${i}`).value = "";
@@ -961,11 +1039,10 @@
 
       document.getElementById('formModal').classList.remove('hidden');
 
-      // TỰ ĐỘNG QUÉT CÁC ẢNH ĐANG HIỆN TRÊN MÀN HÌNH ĐỂ TÌM TEM QR
       const statusElem = document.getElementById('qrScanStatus');
       const statusTextElem = document.getElementById('qrScanStatusText');
       statusElem.classList.remove('hidden');
-      statusTextElem.innerText = "Đang quét ảnh hôm nay để tự đọc mã QR...";
+      statusTextElem.innerText = "Đang áp dụng AI quét ảnh tìm tem QR...";
 
       const tempPhotos = Array.from(tempPhotosMap.values()).filter(
         p => p.branch === currentBranch && p.date === today
@@ -974,35 +1051,20 @@
 
       let scannedCount = 0;
       let rowIndex = 1;
-      const scannedCodesSet = new Set(); // Tránh bị trùng máy
+      const scannedCodesSet = new Set();
 
       for (let photo of allTodayPhotos) {
         if (rowIndex > 10) break;
         const qrContent = await scanQRCodeFromDataUrl(photo.dataUrl);
 
         if (qrContent) {
-          // Chuỗi QR tem Zema: "MBNNL000033387\nMBNNL , Máy bắn nano lớn"
           const lines = qrContent.split('\n').map(l => l.trim()).filter(l => l);
           let fullMa = lines[0] || "";
-          let rawNameLine = lines[1] || lines[0] || "";
-
-          // Cắt lấy 5 số cuối của Mã Tài Sản
           let code5 = fullMa.length >= 5 ? fullMa.slice(-5) : fullMa;
 
           if (!scannedCodesSet.has(code5)) {
             scannedCodesSet.add(code5);
-
-            // Bóc tách Tên Máy đằng sau dấu phẩy
-            let machineName = "";
-            if (rawNameLine.includes(',')) {
-              machineName = rawNameLine.split(',')[1].trim();
-            } else {
-              machineName = rawNameLine.replace(fullMa, '').trim();
-            }
-
-            document.getElementById(`row_ma_${rowIndex}`).value = code5;
-            document.getElementById(`row_ten_${rowIndex}`).value = machineName;
-
+            parseAndFillQRData(qrContent, rowIndex);
             scannedCount++;
             rowIndex++;
           }
@@ -1010,11 +1072,11 @@
       }
 
       if (scannedCount > 0) {
-        statusTextElem.innerText = `🎉 Đã tìm thấy và điền tự động ${scannedCount} máy từ mã QR!`;
+        statusTextElem.innerText = `🎉 Đã nhận diện & tự điền ${scannedCount} máy từ tem QR!`;
         setTimeout(() => statusElem.classList.add('hidden'), 3500);
       } else {
-        statusTextElem.innerText = "Không tìm thấy tem QR trong các ảnh hôm nay.";
-        setTimeout(() => statusElem.classList.add('hidden'), 2000);
+        statusTextElem.innerText = "Chưa nhận diện được QR từ thư viện ảnh. Ông có thể bấm nút 'Chụp tem QR mục này' bên dưới để quét nhé!";
+        setTimeout(() => statusElem.classList.add('hidden'), 4000);
       }
     }
 
@@ -1046,7 +1108,6 @@
         const ten = document.getElementById(`row_ten_${i}`).value.trim();
         const slInput = document.getElementById(`row_sl_${i}`).value.trim();
         
-        // LOGIC SL: Chỉ khi nào có điền Mã Tài Sản mới hiển thị SL (Mặc định = 1 nếu không nhập khác)
         const sl = ma ? (slInput || "1") : "";
         
         const phong = document.getElementById(`row_phong_${i}`).value.trim();
