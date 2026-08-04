@@ -256,10 +256,10 @@
         <button onclick="closeFormModal()" class="text-slate-400 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
-      <!-- Thông báo đang tự động quét QR -->
+      <!-- Thông báo trạng thái quét QR -->
       <div id="qrScanStatus" class="hidden bg-emerald-950/80 border border-emerald-500/50 p-2.5 rounded-xl text-emerald-400 text-xs font-semibold flex items-center gap-2">
         <div class="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shrink-0"></div>
-        <span id="qrScanStatusText">Đang quét ảnh lấy mã QR tài sản...</span>
+        <span id="qrScanStatusText">Đang quét ảnh hôm nay để đọc mã QR...</span>
       </div>
 
       <!-- Thông tin chung -->
@@ -426,7 +426,7 @@
 
     const ADMIN_PASS = "0000";
 
-    // CẬP NHẬT CHUẨN 13 CHI NHÁNH THEO HÌNH
+    // ĐÃ SỬA ĐÚNG TÊN "Bv Ngọc Dung 33 Nguyễn Bỉnh Khiêm"
     const DEFAULT_BRANCHES = [
       "Zema 190 3/2",
       "Zema Trường Chinh",
@@ -440,7 +440,7 @@
       "Zema Phan Đăng Lưu",
       "Zema Nguyễn Gia Trí",
       "Zema Đặng Văn Bi",
-      "Bv Ngọc Dũng 33 Nguyễn Bỉnh Khiêm"
+      "Bv Ngọc Dung 33 Nguyễn Bỉnh Khiêm"
     ];
 
     let currentBranch = "";
@@ -908,20 +908,31 @@
       }
     }
 
-    // HÀM ĐỌC MÃ QR TỪ DATAURL ẢNH
+    // HÀM ĐỌC MÃ QR ĐƯỢC CẢI TIẾN (RESIZE ẢNH GIÚP AI ĐỌC CỰC NHẠY)
     function scanQRCodeFromDataUrl(dataUrl) {
       return new Promise((resolve) => {
         const img = new Image();
+        img.crossOrigin = "anonymous";
         img.onload = () => {
           const canvas = document.createElement('canvas');
-          canvas.width = img.width;
-          canvas.height = img.height;
+          // Resize ảnh xuống tối đa 800px để thư viện jsQR đọc nét và nhanh hơn
+          const MAX_SIZE = 800;
+          let w = img.width;
+          let h = img.height;
+          if (w > MAX_SIZE || h > MAX_SIZE) {
+            if (w > h) { h = Math.round((h * MAX_SIZE) / w); w = MAX_SIZE; }
+            else { w = Math.round((w * MAX_SIZE) / h); h = MAX_SIZE; }
+          }
+          canvas.width = w;
+          canvas.height = h;
           const ctx = canvas.getContext('2d');
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, w, h);
           
+          const imageData = ctx.getImageData(0, 0, w, h);
           if (typeof jsQR !== 'undefined') {
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height, {
+              inversionAttempts: "dontInvert",
+            });
             if (code && code.data) {
               resolve(code.data);
               return;
@@ -936,13 +947,13 @@
 
     async function openFormModal() {
       document.getElementById('formBranch').value = currentBranch;
-      const today = new Date().toISOString().split('T')[0];
+      const today = selectedDate;
       const [y, m, d] = selectedDate.split('-');
       document.getElementById('formDateStr').value = `${d}/${m}/${y}`;
       document.getElementById('formBenSuaChua').value = "Nguyễn Hữu Phúc";
       document.getElementById('formChucVuSuaChua').value = "NVSC";
 
-      // Xóa trắng form trước khi quét
+      // Xóa trắng các ô nhập trước khi tự điền
       for (let i = 1; i <= 10; i++) {
         document.getElementById(`row_ma_${i}`).value = "";
         document.getElementById(`row_ten_${i}`).value = "";
@@ -950,11 +961,11 @@
 
       document.getElementById('formModal').classList.remove('hidden');
 
-      // TỰ ĐỘNG QUÉT MÃ QR CỦA CÁC ẢNH CHỤP HÔM NAY THUỘC CHI NHÁNH ĐANG CHỌN
+      // TỰ ĐỘNG QUÉT CÁC ẢNH ĐANG HIỆN TRÊN MÀN HÌNH ĐỂ TÌM TEM QR
       const statusElem = document.getElementById('qrScanStatus');
       const statusTextElem = document.getElementById('qrScanStatusText');
       statusElem.classList.remove('hidden');
-      statusTextElem.innerText = "Đang quét ảnh hôm nay để tự động điền Mã & Tên máy...";
+      statusTextElem.innerText = "Đang quét ảnh hôm nay để tự đọc mã QR...";
 
       const tempPhotos = Array.from(tempPhotosMap.values()).filter(
         p => p.branch === currentBranch && p.date === today
@@ -963,41 +974,47 @@
 
       let scannedCount = 0;
       let rowIndex = 1;
+      const scannedCodesSet = new Set(); // Tránh bị trùng máy
 
       for (let photo of allTodayPhotos) {
         if (rowIndex > 10) break;
         const qrContent = await scanQRCodeFromDataUrl(photo.dataUrl);
 
         if (qrContent) {
-          // Chuỗi QR mẫu: "MBNNL000033387\nMBNNL , Máy bắn nano lớn" hoặc tương đương
+          // Chuỗi QR tem Zema: "MBNNL000033387\nMBNNL , Máy bắn nano lớn"
           const lines = qrContent.split('\n').map(l => l.trim()).filter(l => l);
           let fullMa = lines[0] || "";
-          let rawNameLine = lines[1] || "";
+          let rawNameLine = lines[1] || lines[0] || "";
 
-          // Bóc tách 5 số cuối của mã
+          // Cắt lấy 5 số cuối của Mã Tài Sản
           let code5 = fullMa.length >= 5 ? fullMa.slice(-5) : fullMa;
 
-          // Bóc tách tên máy đằng sau dấu phẩy
-          let machineName = "";
-          if (rawNameLine.includes(',')) {
-            machineName = rawNameLine.split(',')[1].trim();
-          } else {
-            machineName = rawNameLine;
+          if (!scannedCodesSet.has(code5)) {
+            scannedCodesSet.add(code5);
+
+            // Bóc tách Tên Máy đằng sau dấu phẩy
+            let machineName = "";
+            if (rawNameLine.includes(',')) {
+              machineName = rawNameLine.split(',')[1].trim();
+            } else {
+              machineName = rawNameLine.replace(fullMa, '').trim();
+            }
+
+            document.getElementById(`row_ma_${rowIndex}`).value = code5;
+            document.getElementById(`row_ten_${rowIndex}`).value = machineName;
+
+            scannedCount++;
+            rowIndex++;
           }
-
-          document.getElementById(`row_ma_${rowIndex}`).value = code5;
-          document.getElementById(`row_ten_${rowIndex}`).value = machineName;
-
-          scannedCount++;
-          rowIndex++;
         }
       }
 
       if (scannedCount > 0) {
-        statusTextElem.innerText = `🎉 Đã tự động phát hiện và điền ${scannedCount} máy từ mã QR!`;
+        statusTextElem.innerText = `🎉 Đã tìm thấy và điền tự động ${scannedCount} máy từ mã QR!`;
         setTimeout(() => statusElem.classList.add('hidden'), 3500);
       } else {
-        statusElem.classList.add('hidden');
+        statusTextElem.innerText = "Không tìm thấy tem QR trong các ảnh hôm nay.";
+        setTimeout(() => statusElem.classList.add('hidden'), 2000);
       }
     }
 
