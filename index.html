@@ -16,6 +16,9 @@
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
+  <!-- Thư viện Quét Mã QR từ Ảnh (jsQR) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+
   <!-- Thư viện Xuất PDF A4 Chuẩn -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
@@ -253,6 +256,12 @@
         <button onclick="closeFormModal()" class="text-slate-400 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
 
+      <!-- Thông báo đang tự động quét QR -->
+      <div id="qrScanStatus" class="hidden bg-emerald-950/80 border border-emerald-500/50 p-2.5 rounded-xl text-emerald-400 text-xs font-semibold flex items-center gap-2">
+        <div class="w-3.5 h-3.5 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin shrink-0"></div>
+        <span id="qrScanStatusText">Đang quét ảnh lấy mã QR tài sản...</span>
+      </div>
+
       <!-- Thông tin chung -->
       <div class="space-y-3 text-xs">
         <div class="grid grid-cols-2 gap-2">
@@ -291,7 +300,7 @@
 
       <!-- Danh sách máy -->
       <div class="space-y-2">
-        <span class="text-xs font-bold text-slate-300 block">Danh Sách Máy Sửa (Bấm nút bên dưới để điền nhanh):</span>
+        <span class="text-xs font-bold text-slate-300 block">Danh Sách Máy Sửa (Mã & Tên máy được quét tự động):</span>
         <div id="formRowsContainer" class="space-y-3 max-h-[42vh] overflow-y-auto pr-1">
         </div>
       </div>
@@ -416,11 +425,22 @@
     const firestore = firebase.firestore();
 
     const ADMIN_PASS = "0000";
+
+    // CẬP NHẬT CHUẨN 13 CHI NHÁNH THEO HÌNH
     const DEFAULT_BRANCHES = [
-      "CN 190 3/2", "CN 352 Trường Chinh", "CN 101 Bùi Thị Xuân",
-      "CN 04 Hai Bà Trưng", "CN 76 Quốc Hương", "CN 45 Cao Thắng",
-      "CN 84 Nguyễn Thị Thập", "CN 12 Phan Văn Trị", "CN 25 Hoàng Văn Thụ",
-      "CN 18 Phạm Văn Đồng", "CN 09 Quang Trung", "CN 33 Võ Văn Ngân", "CN 52 Kinh Dương Vương"
+      "Zema 190 3/2",
+      "Zema Trường Chinh",
+      "Zema 212 Trần Hưng Đạo",
+      "Zema Nguyễn Thị Thập",
+      "Zema Huỳnh Tấn Phát",
+      "Zema Quang Trung GV",
+      "Zema Hà Huy Giáp",
+      "Zema Kinh Dương Vương",
+      "Zema Luỹ Bán Bích",
+      "Zema Phan Đăng Lưu",
+      "Zema Nguyễn Gia Trí",
+      "Zema Đặng Văn Bi",
+      "Bv Ngọc Dũng 33 Nguyễn Bỉnh Khiêm"
     ];
 
     let currentBranch = "";
@@ -872,7 +892,7 @@
               </div>
             </div>
 
-            <!-- Ô XÁC NHẬN BÊN SỬA & NÚT BẤM NHANH (ĐÃ TÁCH TỪNG MỤC RIÊNG) -->
+            <!-- Ô XÁC NHẬN BÊN SỬA & NÚT BẤM NHANH -->
             <div class="space-y-1">
               <input type="text" id="row_xacnhan_${i}" placeholder="Xác nhận bên sửa chữa" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
               <div class="flex gap-1 overflow-x-auto pt-0.5 pb-1">
@@ -888,13 +908,97 @@
       }
     }
 
-    function openFormModal() {
+    // HÀM ĐỌC MÃ QR TỪ DATAURL ẢNH
+    function scanQRCodeFromDataUrl(dataUrl) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          
+          if (typeof jsQR !== 'undefined') {
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            if (code && code.data) {
+              resolve(code.data);
+              return;
+            }
+          }
+          resolve(null);
+        };
+        img.onerror = () => resolve(null);
+        img.src = dataUrl;
+      });
+    }
+
+    async function openFormModal() {
       document.getElementById('formBranch').value = currentBranch;
+      const today = new Date().toISOString().split('T')[0];
       const [y, m, d] = selectedDate.split('-');
       document.getElementById('formDateStr').value = `${d}/${m}/${y}`;
       document.getElementById('formBenSuaChua').value = "Nguyễn Hữu Phúc";
       document.getElementById('formChucVuSuaChua').value = "NVSC";
+
+      // Xóa trắng form trước khi quét
+      for (let i = 1; i <= 10; i++) {
+        document.getElementById(`row_ma_${i}`).value = "";
+        document.getElementById(`row_ten_${i}`).value = "";
+      }
+
       document.getElementById('formModal').classList.remove('hidden');
+
+      // TỰ ĐỘNG QUÉT MÃ QR CỦA CÁC ẢNH CHỤP HÔM NAY THUỘC CHI NHÁNH ĐANG CHỌN
+      const statusElem = document.getElementById('qrScanStatus');
+      const statusTextElem = document.getElementById('qrScanStatusText');
+      statusElem.classList.remove('hidden');
+      statusTextElem.innerText = "Đang quét ảnh hôm nay để tự động điền Mã & Tên máy...";
+
+      const tempPhotos = Array.from(tempPhotosMap.values()).filter(
+        p => p.branch === currentBranch && p.date === today
+      );
+      const allTodayPhotos = [...tempPhotos, ...lastCloudPhotosCache.filter(p => p.date === today)];
+
+      let scannedCount = 0;
+      let rowIndex = 1;
+
+      for (let photo of allTodayPhotos) {
+        if (rowIndex > 10) break;
+        const qrContent = await scanQRCodeFromDataUrl(photo.dataUrl);
+
+        if (qrContent) {
+          // Chuỗi QR mẫu: "MBNNL000033387\nMBNNL , Máy bắn nano lớn" hoặc tương đương
+          const lines = qrContent.split('\n').map(l => l.trim()).filter(l => l);
+          let fullMa = lines[0] || "";
+          let rawNameLine = lines[1] || "";
+
+          // Bóc tách 5 số cuối của mã
+          let code5 = fullMa.length >= 5 ? fullMa.slice(-5) : fullMa;
+
+          // Bóc tách tên máy đằng sau dấu phẩy
+          let machineName = "";
+          if (rawNameLine.includes(',')) {
+            machineName = rawNameLine.split(',')[1].trim();
+          } else {
+            machineName = rawNameLine;
+          }
+
+          document.getElementById(`row_ma_${rowIndex}`).value = code5;
+          document.getElementById(`row_ten_${rowIndex}`).value = machineName;
+
+          scannedCount++;
+          rowIndex++;
+        }
+      }
+
+      if (scannedCount > 0) {
+        statusTextElem.innerText = `🎉 Đã tự động phát hiện và điền ${scannedCount} máy từ mã QR!`;
+        setTimeout(() => statusElem.classList.add('hidden'), 3500);
+      } else {
+        statusElem.classList.add('hidden');
+      }
     }
 
     function closeFormModal() {
@@ -925,7 +1029,7 @@
         const ten = document.getElementById(`row_ten_${i}`).value.trim();
         const slInput = document.getElementById(`row_sl_${i}`).value.trim();
         
-        // CẬP NHẬT LOGIC SL: Chỉ khi nào có điền Mã Tài Sản mới hiển thị SL (Mặc định = 1 nếu không nhập khác)
+        // LOGIC SL: Chỉ khi nào có điền Mã Tài Sản mới hiển thị SL (Mặc định = 1 nếu không nhập khác)
         const sl = ma ? (slInput || "1") : "";
         
         const phong = document.getElementById(`row_phong_${i}`).value.trim();
