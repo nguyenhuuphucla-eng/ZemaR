@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v1.7)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v1.8)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -148,7 +148,7 @@
   </header>
 
   <!-- Container Chính -->
-  <main class="max-w-md mx-auto w-full flex-1 px-4 py-3 space-y-3">
+  <main class="max-w-md mx-auto w-full flex-1 px-4 py-3 space-y-4">
 
     <!-- Lịch chọn ngày -->
     <section class="bg-slate-900/80 rounded-2xl border border-slate-800 shadow-xl overflow-hidden">
@@ -178,39 +178,46 @@
       </div>
     </section>
 
-    <!-- Thư mục, Nút Chụp & Nút Tạo Phiếu PDF -->
+    <!-- Thư mục & Nút Thao tác đã được sắp xếp lại -->
     <section class="space-y-3">
-      <div class="flex items-center justify-between gap-1.5">
-        <div class="flex bg-slate-900 p-1 rounded-xl border border-slate-800 flex-1 overflow-x-auto gap-1">
-          <button onclick="switchFolder('tat_ca')" id="tab-tat_ca" class="flex-1 min-w-[50px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-pink-400 bg-slate-800">
-            Tất Cả <span id="count-tat_ca" class="text-[9px] opacity-75">(0)</span>
-          </button>
-          <button onclick="switchFolder('may')" id="tab-may" class="flex-1 min-w-[50px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-slate-400">
-            Máy <span id="count-may" class="text-[9px] opacity-75">(0)</span>
-          </button>
-          <button onclick="switchFolder('phieu_sua')" id="tab-phieu_sua" class="flex-1 min-w-[50px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-slate-400">
-            Phiếu <span id="count-phieu_sua" class="text-[9px] opacity-75">(0)</span>
-          </button>
-          <button onclick="switchFolder('hoa_don')" id="tab-hoa_don" class="flex-1 min-w-[50px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-slate-400">
-            Hóa Đơn <span id="count-hoa_don" class="text-[9px] opacity-75">(0)</span>
-          </button>
-        </div>
+      <!-- Row 1: Các Tab Thư mục -->
+      <div class="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 w-full overflow-x-auto gap-1 shadow-lg">
+        <button onclick="switchFolder('tat_ca')" id="tab-tat_ca" class="flex-1 min-w-[55px] py-1.5 text-[11px] font-bold rounded-lg transition-all text-pink-400 bg-slate-800">
+          Tất Cả <span id="count-tat_ca" class="text-[10px] opacity-75">(0)</span>
+        </button>
+        <button onclick="switchFolder('may')" id="tab-may" class="flex-1 min-w-[55px] py-1.5 text-[11px] font-bold rounded-lg transition-all text-slate-400">
+          Máy <span id="count-may" class="text-[10px] opacity-75">(0)</span>
+        </button>
+        <button onclick="switchFolder('phieu_sua')" id="tab-phieu_sua" class="flex-1 min-w-[55px] py-1.5 text-[11px] font-bold rounded-lg transition-all text-slate-400">
+          Phiếu <span id="count-phieu_sua" class="text-[10px] opacity-75">(0)</span>
+        </button>
+        <button onclick="switchFolder('hoa_don')" id="tab-hoa_don" class="flex-1 min-w-[55px] py-1.5 text-[11px] font-bold rounded-lg transition-all text-slate-400">
+          Hóa Đơn <span id="count-hoa_don" class="text-[10px] opacity-75">(0)</span>
+        </button>
+      </div>
 
-        <div class="flex items-center gap-1.5 shrink-0">
-          <button onclick="openFormModal()" class="bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 font-bold px-2.5 py-2.5 rounded-xl shadow-lg flex items-center gap-1 text-xs active:scale-95 transition-transform">
-            <i data-lucide="file-text" class="w-4 h-4 text-emerald-400"></i> Tạo PDF
-          </button>
+      <!-- Row 2: Nút Thao tác -->
+      <div class="flex items-center gap-2 w-full">
+        <!-- Nút Tra Cứu -->
+        <button onclick="openSearchHistoryModal()" class="flex-[1] bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl shadow-lg flex items-center justify-center gap-1.5 text-[11px] active:scale-95 transition-transform">
+          <i data-lucide="search" class="w-4 h-4 text-blue-400"></i> Tra Cứu
+        </button>
 
-          <button onclick="triggerCameraInput()" class="bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold px-3 py-2.5 rounded-xl shadow-lg flex items-center gap-1 text-xs active:scale-95 transition-transform">
-            <i data-lucide="camera" class="w-4 h-4"></i> Chụp
-          </button>
-        </div>
+        <!-- Nút Tạo Phiếu -->
+        <button onclick="openFormModal()" class="flex-[1.8] bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl shadow-lg flex items-center justify-center gap-1.5 text-[11px] active:scale-95 transition-transform">
+          <i data-lucide="file-text" class="w-4 h-4 text-emerald-400"></i> Tạo Phiếu Sửa Máy
+        </button>
+
+        <!-- Nút Chụp -->
+        <button onclick="triggerCameraInput()" class="flex-[1] bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold py-2.5 rounded-xl shadow-lg flex items-center justify-center gap-1.5 text-[11px] active:scale-95 transition-transform">
+          <i data-lucide="camera" class="w-4 h-4"></i> Chụp
+        </button>
 
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageCapture(event)">
       </div>
 
       <!-- Thanh chọn nhiều ảnh -->
-      <div id="batchBar" class="hidden bg-slate-900 border border-pink-500/40 rounded-xl p-2.5 flex flex-col gap-2 shadow-lg">
+      <div id="batchBar" class="hidden bg-slate-900 border border-pink-500/40 rounded-xl p-2.5 flex flex-col gap-2 shadow-lg mt-2">
         <div class="flex items-center justify-between">
           <button onclick="toggleSelectAll()" class="bg-slate-800 hover:bg-slate-700 text-pink-400 text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 border border-pink-500/30">
             <i data-lucide="check-square" class="w-3.5 h-3.5"></i> <span id="btnSelectAllText">Chọn Tất Cả</span>
@@ -243,8 +250,27 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v1.7</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v1.8</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
+
+  <!-- MODAL TRA CỨU LỊCH SỬ MÁY -->
+  <div id="searchModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-50 hidden flex flex-col p-4">
+    <div class="max-w-md mx-auto w-full h-full flex flex-col pt-2">
+      <div class="flex items-center gap-3 mb-4">
+        <button onclick="closeSearchModal()" class="text-slate-400 p-2 bg-slate-800 border border-slate-700 rounded-full active:scale-95"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+        <h2 class="text-pink-500 font-black text-lg uppercase tracking-wide">Tra Cứu Lịch Sử Sửa Chữa</h2>
+      </div>
+
+      <div class="flex gap-2 mb-4 shrink-0">
+        <input type="text" id="searchInput" placeholder="Nhập Mã Tài Sản (VD: 12345)..." class="flex-1 bg-slate-800 border border-slate-700 text-slate-100 rounded-xl px-4 py-3 text-sm outline-none focus:border-pink-500 transition-colors shadow-inner">
+        <button onclick="searchRepairs()" class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-5 py-3 rounded-xl shadow-lg flex items-center justify-center active:scale-95 transition-transform"><i data-lucide="search" class="w-5 h-5"></i></button>
+      </div>
+
+      <div id="searchResults" class="flex-1 overflow-y-auto space-y-3 pb-6">
+        <!-- Results injected here -->
+      </div>
+    </div>
+  </div>
 
   <!-- MODAL FORM NHẬP PHIẾU SỬA CHỮA MÁY -->
   <div id="formModal" class="fixed inset-0 bg-black/90 z-50 hidden flex flex-col justify-between p-4 overflow-y-auto">
@@ -303,7 +329,7 @@
       <div class="flex gap-2 pt-2 border-t border-slate-800">
         <button onclick="closeFormModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs">Hủy Bỏ</button>
         <button onclick="exportFormToPDF()" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg flex items-center justify-center gap-1.5">
-          <i data-lucide="download" class="w-4 h-4"></i> Tải File PDF để in
+          <i data-lucide="download" class="w-4 h-4"></i> Lưu & Tải PDF
         </button>
       </div>
     </div>
@@ -388,10 +414,12 @@
         <div style="width: 40%;">
           <p style="font-weight: bold; margin: 0;">Người Lập Phiếu</p>
           <p style="font-size: 11px; font-style: italic; margin: 3px 0 0 0;">( ký, họ tên)</p>
+          <p style="margin-top: 40px; font-weight: bold; font-size: 13px;" id="pdfSignNguoiDeXuat"></p>
         </div>
         <div style="width: 40%;">
           <p style="font-weight: bold; margin: 0;">Đội Bảo Trì</p>
           <p style="font-size: 11px; font-style: italic; margin: 3px 0 0 0;">( ký, họ tên)</p>
+          <p style="margin-top: 40px; font-weight: bold; font-size: 13px;" id="pdfSignBenSuaChua"></p>
         </div>
       </div>
     </div>
@@ -577,8 +605,8 @@
         const btn = document.getElementById(`tab-${f}`);
         if (btn) {
           btn.className = (f === folder)
-            ? "flex-1 min-w-[50px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-pink-400 bg-slate-800"
-            : "flex-1 min-w-[50px] py-1.5 text-[10px] font-bold rounded-lg transition-all text-slate-400";
+            ? "flex-1 min-w-[55px] py-1.5 text-[11px] font-bold rounded-lg transition-all text-pink-400 bg-slate-800"
+            : "flex-1 min-w-[55px] py-1.5 text-[11px] font-bold rounded-lg transition-all text-slate-400";
         }
       });
       exitBatchMode();
@@ -691,10 +719,6 @@
     }
 
     function triggerCameraInput() { document.getElementById('cameraInput').click(); }
-
-    function removeVietnameseTones(str) {
-      return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toUpperCase();
-    }
 
     async function handleImageCapture(event) {
       const file = event.target.files[0];
@@ -865,6 +889,74 @@
       document.getElementById('formModal').classList.add('hidden');
     }
 
+    // TRA CỨU MÁY SỬA CHỮA TRÊN CLOUD
+    function openSearchHistoryModal() {
+      document.getElementById('searchModal').classList.remove('hidden');
+      document.getElementById('searchResults').innerHTML = '<div class="text-center text-slate-500 text-xs py-10 mt-10"><i data-lucide="search" class="w-10 h-10 mx-auto text-slate-600 mb-2"></i> Nhập mã tài sản máy để tra cứu lịch sử.</div>';
+      document.getElementById('searchInput').value = '';
+      lucide.createIcons();
+    }
+
+    function closeSearchModal() {
+      document.getElementById('searchModal').classList.add('hidden');
+    }
+
+    async function searchRepairs() {
+      const input = document.getElementById('searchInput').value.trim();
+      if(!input) return;
+      const container = document.getElementById('searchResults');
+      container.innerHTML = '<div class="text-center text-slate-400 text-xs py-10 flex flex-col items-center gap-2"><i data-lucide="loader-2" class="w-6 h-6 animate-spin text-pink-500"></i> Đang tìm kiếm trên Cloud...</div>';
+      lucide.createIcons();
+
+      try {
+        const snapshot = await firestore.collection('repairs').where('ma', '==', input).get();
+        let records = [];
+        snapshot.forEach(doc => records.push(doc.data()));
+
+        if(records.length === 0) {
+          container.innerHTML = `<div class="text-center text-slate-500 text-xs py-10"><i data-lucide="inbox" class="w-8 h-8 mx-auto text-slate-600 mb-2"></i> Không tìm thấy lịch sử nào cho mã máy <b class="text-pink-500">${input}</b>.</div>`;
+          lucide.createIcons();
+          return;
+        }
+
+        // Sắp xếp ngày mới nhất lên trên
+        records.sort((a, b) => {
+           let timeA = a.createdAt ? a.createdAt.seconds : 0;
+           let timeB = b.createdAt ? b.createdAt.seconds : 0;
+           return timeB - timeA;
+        });
+
+        container.innerHTML = '';
+        records.forEach(data => {
+          const dateStr = data.dateStr || "Không rõ";
+          const branchStr = data.branch || "Không rõ";
+          const hientrangStr = data.hientrang || "Chưa ghi nhận";
+          const xacnhanStr = data.xacnhan || "Chưa xác nhận";
+          const tenStr = data.ten || "Không có tên";
+
+          container.innerHTML += `
+            <div class="bg-slate-800 rounded-xl p-3.5 border border-slate-700 shadow-lg">
+              <div class="flex justify-between items-center border-b border-slate-700 pb-2 mb-2">
+                <div class="font-black text-pink-400 flex items-center gap-1.5"><i data-lucide="calendar" class="w-4 h-4"></i> ${dateStr}</div>
+                <div class="text-[11px] font-bold text-emerald-400 flex items-center gap-1"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> ${branchStr}</div>
+              </div>
+              <div class="space-y-1 text-xs">
+                <div><span class="text-slate-400 font-semibold inline-block w-[70px]">Tên Máy:</span> <span class="text-slate-100 font-bold">${tenStr}</span></div>
+                <div><span class="text-slate-400 font-semibold inline-block w-[70px]">Người ĐX:</span> <span class="text-slate-100">${data.nguoiDeXuat || '---'}</span></div>
+                <div class="mt-2 p-2 bg-slate-900 rounded-lg space-y-1">
+                  <div><span class="text-slate-400 inline-block w-[75px]">Tình trạng:</span> <span class="text-rose-400 font-bold">${hientrangStr}</span></div>
+                  <div><span class="text-slate-400 inline-block w-[75px]">Xử lý:</span> <span class="text-blue-400 font-bold">${xacnhanStr}</span></div>
+                </div>
+              </div>
+            </div>
+          `;
+        });
+        lucide.createIcons();
+      } catch(err) {
+        container.innerHTML = '<div class="text-center text-red-400 text-xs py-10">Lỗi khi tìm kiếm: '+err.message+'</div>';
+      }
+    }
+
     async function exportFormToPDF() {
       const branch = document.getElementById('formBranch').value;
       const dateStr = document.getElementById('formDateStr').value;
@@ -879,11 +971,17 @@
       document.getElementById('pdfBenSuaChua').innerText = benSuaChua;
       document.getElementById('pdfChucVuSuaChua').innerText = chucVuSuaChua;
 
+      // CHÈN TÊN XUỐNG DƯỚI CHỮ KÝ TRONG PDF
+      document.getElementById('pdfSignNguoiDeXuat').innerText = nguoiDeXuat;
+      document.getElementById('pdfSignBenSuaChua').innerText = benSuaChua;
+
       const [d, m, y] = dateStr.split('/');
       document.getElementById('pdfDateText').innerText = `Ngày ${d || '...'}, Tháng ${m || '...'}, Năm ${y || '202...'}`;
 
       const tbody = document.getElementById('pdfTableBody');
       tbody.innerHTML = "";
+      const repairsToSave = [];
+
       for (let i = 1; i <= 10; i++) {
         const ma = document.getElementById(`row_ma_${i}`).value.trim();
         const ten = document.getElementById(`row_ten_${i}`).value.trim();
@@ -895,6 +993,27 @@
         const hientrang = document.getElementById(`row_trangthai_${i}`).value.trim();
         const xacnhan = document.getElementById(`row_xacnhan_${i}`).value.trim();
 
+        // CHUẨN BỊ DATA ĐỂ LƯU CLOUD (Chỉ lưu nếu có nhập mã hoặc tên)
+        if (ma || ten) {
+          repairsToSave.push({
+            branch: branch,
+            dateStr: dateStr,
+            dateKey: selectedDate, // Dạng YYYY-MM-DD
+            nguoiDeXuat: nguoiDeXuat,
+            chucVuDeXuat: chucVuDeXuat,
+            benSuaChua: benSuaChua,
+            chucVuSuaChua: chucVuSuaChua,
+            ma: ma,
+            ten: ten,
+            sl: sl,
+            phong: phong,
+            hientrang: hientrang,
+            xacnhan: xacnhan,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+
+        // VẼ 10 DÒNG RA PDF
         tbody.innerHTML += `
           <tr style="height: 28px; text-align: center;">
             <td style="border: 1px solid #000; padding: 2px 4px;">${i}</td>
@@ -921,13 +1040,25 @@
       };
 
       try {
+        // BƯỚC 1: LƯU DATA LÊN FIRESTORE NẾU CÓ DỮ LIỆU SỬA CHỮA
+        if (repairsToSave.length > 0) {
+          const batch = firestore.batch();
+          repairsToSave.forEach(data => {
+            const docRef = firestore.collection("repairs").doc();
+            batch.set(docRef, data);
+          });
+          await batch.commit();
+        }
+
+        // BƯỚC 2: XUẤT FILE PDF
         await html2pdf().set(opt).from(element).save();
         closeFormModal();
       } catch (err) {
-        alert("Lỗi xuất file PDF: " + err.message);
+        alert("Có lỗi xảy ra khi tạo phiếu hoặc lưu dữ liệu: " + err.message);
       }
     }
 
+    // TOUCH & ZOOM CHO MODAL XEM ẢNH
     function initTouchZoomPan() {
       const img = document.getElementById('modalImg');
       if (!img) return;
