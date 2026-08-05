@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.6)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.7)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -279,10 +279,10 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v2.6</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v2.7</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
-  <!-- MODAL QUÉT MÃ QR/DATA MATRIX (Đã mở zoom và ép phân giải cao) -->
+  <!-- MODAL QUÉT MÃ QR/DATA MATRIX -->
   <div id="qrModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-[60] hidden flex flex-col p-4">
     <div class="flex justify-between items-center mb-4 pt-2">
       <h2 class="text-pink-500 font-black text-lg uppercase tracking-wide flex items-center gap-2">
@@ -295,7 +295,7 @@
         <div id="qr-reader"></div>
       </div>
       <p class="text-emerald-400 font-bold text-xs mt-6 text-center bg-slate-800 px-4 py-3 rounded-lg border border-emerald-500/30 shadow-inner">
-        <i data-lucide="scan-face" class="w-4 h-4 inline-block mb-0.5"></i> Trình duyệt sẽ tự động Zoom (nếu máy hỗ trợ). Vui lòng để cách mã <b>10-15cm</b> để camera lấy nét. Lưu ý: Cần mở trang web bằng link `https://` và cấp quyền cho camera.
+        <i data-lucide="scan-face" class="w-4 h-4 inline-block mb-0.5"></i> Vui lòng đưa camera cách tem khoảng <b>10cm</b> để lấy nét. iPhone sẽ tự động quét Data Matrix.
       </p>
     </div>
   </div>
@@ -887,7 +887,6 @@
       }
     }
 
-    // TÍCH HỢP NÚT QUÉT QR VÀO Ô MÃ TÀI SẢN
     function renderFormRows(existingRows = []) {
       const container = document.getElementById('formRowsContainer');
       container.innerHTML = "";
@@ -942,14 +941,13 @@
     }
 
     // ==============================================
-    // LOGIC CAMERA BẢN MỚI NHẤT V2.6
+    // LOGIC CAMERA BẢN MỚI NHẤT V2.7 - ĐÃ FIX LỖI 4 KEYS
     // ==============================================
     function startQRScanner(rowIndex) {
       currentScanningRow = rowIndex;
       document.getElementById('qrModal').classList.remove('hidden');
 
       if (!html5QrCode) {
-        // CẤU HÌNH ĐỂ THƯ VIỆN ĐỌC DATA MATRIX (VÀ CÁC MÃ KHÁC)
         html5QrCode = new Html5Qrcode("qr-reader", { 
           formatsToSupport: [ 
             Html5QrcodeSupportedFormats.QR_CODE,
@@ -967,7 +965,6 @@
         let maTaiSan = text;
         let tenMay = "";
 
-        // Tự động cắt 5 ký tự cuối làm Mã Tài Sản
         if (text.length > 5) {
           maTaiSan = text.slice(-5);
           tenMay = text.slice(0, -5).trim();
@@ -981,22 +978,21 @@
         closeQRScanner();
       };
 
-      const config = { fps: 15 };
+      // ĐÂY LÀ ĐOẠN SỬA LỖI: Chỉ dùng ĐÚNG 1 tham số theo luật của thư viện
+      const cameraIdOrConfig = { facingMode: "environment" };
 
-      // YÊU CẦU CAMERA CHỤP PHÂN GIẢI CAO VÀ ÉP ZOOM KỸ THUẬT SỐ/QUANG HỌC
-      const cameraConfig = { 
-        facingMode: "environment",
-        width: { ideal: 1920 }, // Nâng lên Full HD để nét căng
-        height: { ideal: 1080 },
-        advanced: [
-          { zoom: 2.5 }, // Ép Zoom lên 2.5 lần
-          { focusMode: "continuous" } // Bắt buộc lấy nét liên tục
-        ]
+      // Chuyển phần bắt ép độ phân giải cao vào bên trong config
+      const config = { 
+        fps: 15,
+        videoConstraints: {
+          width: { ideal: 1920 }, // Nâng phân giải để bắt Data Matrix
+          height: { ideal: 1080 }
+        }
       };
 
-      html5QrCode.start(cameraConfig, config, qrCodeSuccessCallback)
+      html5QrCode.start(cameraIdOrConfig, config, qrCodeSuccessCallback)
       .catch((err) => {
-        alert("Lỗi truy cập Camera. Chú ý: Bác phải mở web bằng link 'https://' mới được cấp quyền camera nhé! Lỗi chi tiết: " + err);
+        alert("Lỗi truy cập Camera: " + err);
         closeQRScanner();
       });
     }
