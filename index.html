@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v3.0)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v3.1)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,7 +19,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-  <!-- Thư viện quét mã QR/Barcode nguyên bản -->
+  <!-- Thư viện quét mã QR/Barcode -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <!-- Firebase SDK -->
@@ -123,7 +123,6 @@
       overflow: hidden;
     }
 
-    /* Đảm bảo camera web không bị biến dạng tỷ lệ */
     #qr-reader {
       width: 100%;
       border: none !important;
@@ -280,10 +279,10 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v3.0</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v3.1</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
-  <!-- MODAL QUÉT MÃ QR (Đơn giản hóa triệt để) -->
+  <!-- MODAL QUÉT MÃ QR -->
   <div id="qrModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[60] hidden flex flex-col p-4">
     <div class="flex justify-between items-center mb-4 pt-2">
       <h2 class="text-pink-500 font-black text-lg uppercase tracking-wide flex items-center gap-2">
@@ -300,16 +299,16 @@
       
       <p class="text-slate-300 font-medium text-[11px] mt-4 text-center bg-slate-800 px-4 py-2.5 rounded-lg border border-slate-700 shadow-inner">
         <i data-lucide="info" class="w-3.5 h-3.5 inline-block text-yellow-400 mb-0.5"></i> 
-        Đưa điện thoại ra xa <b>15-20cm</b> để camera web lấy nét. 
+        Hãy đưa mã lọt vào khung vuông. Đặt xa <b>10-15cm</b> để lấy nét.
       </p>
 
-      <!-- Nút Chữa Cháy: Chọn ảnh từ thư viện -->
+      <!-- Nút Quét Bằng Apple Vision (Siêu mượt) -->
       <div class="mt-6 w-full max-w-sm">
         <label class="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-95 transition-transform cursor-pointer">
-          <i data-lucide="image-plus" class="w-5 h-5"></i> Chọn Ảnh Có Mã (Chắc Ăn Nhất)
+          <i data-lucide="image-plus" class="w-5 h-5"></i> Tải Ảnh Có Mã QR Lên (100% Nhận)
           <input type="file" accept="image/*" class="hidden" onchange="handleQRFileScan(event)">
         </label>
-        <p class="text-center text-[10px] text-slate-500 mt-2">Mẹo: Dùng camera gốc chụp mã rồi tải ảnh lên đây để điền tự động.</p>
+        <p class="text-center text-[10px] text-slate-500 mt-2">Dùng camera gốc chụp ảnh tem cho sắc nét, rồi bấm nút này tải lên. Web sẽ dùng AI của Apple để tự tìm mã.</p>
       </div>
     </div>
   </div>
@@ -427,7 +426,7 @@
     </div>
   </div>
 
-  <!-- KHUNG MẪU XUẤT PDF TRỌN VẸN 1 TRANG -->
+  <!-- KHUNG MẪU XUẤT PDF -->
   <div id="pdfRenderContainer">
     <div id="pdfRenderArea">
       <div style="margin-bottom: 8px; text-align: left;">
@@ -953,37 +952,15 @@
     }
 
     // ==============================================
-    // LOGIC CAMERA V3.0 - NGUYÊN BẢN, KHÔNG ÉP CẤU HÌNH
+    // LOGIC CAMERA V3.1 - NATIVE APPLE VISION & FULL HD
     // ==============================================
-    function startQRScanner(rowIndex) {
-      currentScanningRow = rowIndex;
-      document.getElementById('qrModal').classList.remove('hidden');
-
-      if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("qr-reader");
-      }
-
-      const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-        if (navigator.vibrate) navigator.vibrate(100);
-        processScannedText(decodedText);
-      };
-
-      // XÓA TẤT CẢ LỆNH RƯỜM RÀ: Để thư viện tự động lo liệu hoàn toàn
-      // Chỉ yêu cầu duy nhất: Mở camera sau (environment)
-      html5QrCode.start(
-        { facingMode: "environment" }, 
-        { fps: 10 }, 
-        qrCodeSuccessCallback
-      ).catch((err) => {
-        console.warn("Lỗi khởi động camera live: ", err);
-      });
-    }
-
+    
     function processScannedText(decodedText) {
       let text = decodedText.trim();
       let maTaiSan = text;
       let tenMay = "";
 
+      // Logic cắt 5 số cuối làm mã
       if (text.length > 5) {
         maTaiSan = text.slice(-5);
         tenMay = text.slice(0, -5).trim();
@@ -996,25 +973,82 @@
       closeQRScanner();
     }
 
-    // Tính năng quét từ file ảnh tải lên (Dự phòng cực kỳ hiệu quả)
-    function handleQRFileScan(event) {
-      if (!event.target.files || event.target.files.length === 0) return;
-      const file = event.target.files[0];
+    // 1. MỞ CAMERA TRỰC TIẾP (BẬT FULL HD 1080p BÊN TRONG CONFIG)
+    function startQRScanner(rowIndex) {
+      currentScanningRow = rowIndex;
+      document.getElementById('qrModal').classList.remove('hidden');
 
       if (!html5QrCode) {
         html5QrCode = new Html5Qrcode("qr-reader");
       }
 
-      html5QrCode.scanFile(file, true)
-      .then(decodedText => {
+      const qrCodeSuccessCallback = (decodedText) => {
         if (navigator.vibrate) navigator.vibrate(100);
         processScannedText(decodedText);
-        event.target.value = ''; 
-      })
-      .catch(err => {
-        alert("⚠️ Không tìm thấy mã trong ảnh này. Bác thử chụp rõ nét hơn xíu nhé!");
-        event.target.value = ''; 
+      };
+
+      const config = { 
+        fps: 15,
+        qrbox: { width: 250, height: 250 },
+        // Ép Full HD ở đây sẽ không bị lỗi 4 keys
+        videoConstraints: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      };
+
+      html5QrCode.start(
+        { facingMode: "environment" }, 
+        config, 
+        qrCodeSuccessCallback
+      ).catch((err) => {
+        console.warn("Lỗi khởi động camera live: ", err);
       });
+    }
+
+    // 2. CHỌN ẢNH TẢI LÊN (DÙNG TRỰC TIẾP AI CỦA APPLE)
+    async function handleQRFileScan(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const objectUrl = URL.createObjectURL(file);
+      const img = new Image();
+      
+      img.onload = async () => {
+        let isSuccess = false;
+
+        // PHÉP THUẬT NẰM Ở ĐÂY: Dùng BarcodeDetector gốc của Safari/Chrome
+        if ('BarcodeDetector' in window) {
+          try {
+            const detector = new BarcodeDetector();
+            const barcodes = await detector.detect(img);
+            if (barcodes.length > 0) {
+              if (navigator.vibrate) navigator.vibrate(100);
+              processScannedText(barcodes[0].rawValue);
+              isSuccess = true;
+            }
+          } catch (e) {
+            console.log("Native quét thất bại, chuyển sang thư viện web", e);
+          }
+        }
+
+        // DỰ PHÒNG: Nếu máy cũ không có Native AI thì xài lại thư viện cùi bắp
+        if (!isSuccess) {
+          if (!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
+          try {
+            const decodedText = await html5QrCode.scanFile(file, false);
+            if (navigator.vibrate) navigator.vibrate(100);
+            processScannedText(decodedText);
+          } catch(err) {
+            alert("⚠️ Ối, quét mỏi mắt không ra mã bác ạ! Thôi bác chịu khó gõ tay nốt con này nhé, cắt bớt viền dư xung quanh ảnh thì web dễ đọc hơn!");
+          }
+        }
+
+        URL.revokeObjectURL(objectUrl);
+      };
+      
+      img.src = objectUrl;
+      event.target.value = ''; // Reset input để có thể chọn lại đúng ảnh đó
     }
 
     function closeQRScanner() {
