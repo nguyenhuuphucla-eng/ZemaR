@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.4)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.5)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,7 +19,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-  <!-- Thư viện quét mã QR/Barcode -->
+  <!-- Thư viện quét mã QR/Barcode/DataMatrix -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <!-- Firebase SDK -->
@@ -125,10 +125,13 @@
       overflow: hidden;
     }
 
-    /* CSS cho máy quét QR */
+    /* CSS cho máy quét Toàn Màn Hình */
     #qr-reader {
       width: 100%;
       border: none !important;
+    }
+    #qr-reader video {
+      object-fit: cover;
     }
     #qr-reader__scan_region {
       background: #000;
@@ -227,17 +230,14 @@
 
       <!-- Row 2: Nút Thao tác -->
       <div class="flex items-center gap-2 w-full">
-        <!-- Nút Tra Cứu -->
         <button onclick="openSearchHistoryModal()" class="flex-[1] bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl shadow-lg flex items-center justify-center gap-1.5 text-[11px] active:scale-95 transition-transform">
           <i data-lucide="search" class="w-4 h-4 text-blue-400"></i> Tra Cứu
         </button>
 
-        <!-- Nút Tạo Phiếu -->
         <button onclick="openFormModal()" class="flex-[1.8] bg-slate-800 border border-slate-700 hover:bg-slate-700 text-slate-200 font-bold py-2.5 rounded-xl shadow-lg flex items-center justify-center gap-1.5 text-[11px] active:scale-95 transition-transform">
           <i data-lucide="file-text" class="w-4 h-4 text-emerald-400"></i> Tạo Phiếu Sửa Máy
         </button>
 
-        <!-- Nút Chụp -->
         <button onclick="triggerCameraInput()" class="flex-[1] bg-gradient-to-r from-pink-500 to-rose-600 text-white font-bold py-2.5 rounded-xl shadow-lg flex items-center justify-center gap-1.5 text-[11px] active:scale-95 transition-transform">
           <i data-lucide="camera" class="w-4 h-4"></i> Chụp
         </button>
@@ -279,14 +279,14 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v2.4</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v2.5</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
-  <!-- MODAL QUÉT MÃ QR (Đã chỉnh khung ngắm hình chữ nhật nhỏ) -->
+  <!-- MODAL QUÉT MÃ QR/DATA MATRIX (Đã bỏ khung ngắm, quét full viền) -->
   <div id="qrModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-[60] hidden flex flex-col p-4">
     <div class="flex justify-between items-center mb-4 pt-2">
       <h2 class="text-pink-500 font-black text-lg uppercase tracking-wide flex items-center gap-2">
-        <i data-lucide="scan-line" class="w-6 h-6"></i> Quét Mã Tài Sản
+        <i data-lucide="scan-line" class="w-6 h-6"></i> Quét Mã Máy
       </h2>
       <button onclick="closeQRScanner()" class="text-slate-400 p-2 bg-slate-800 border border-slate-700 rounded-full active:scale-95"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
@@ -295,7 +295,7 @@
         <div id="qr-reader"></div>
       </div>
       <p class="text-emerald-400 font-bold text-xs mt-6 text-center bg-slate-800 px-4 py-3 rounded-lg border border-emerald-500/30 shadow-inner">
-        <i data-lucide="info" class="w-4 h-4 inline-block mb-0.5"></i> Căn ngang mã tài sản lọt vào trong khung vuông. Đừng dí quá sát để camera kịp lấy nét nhé!
+        <i data-lucide="scan-face" class="w-4 h-4 inline-block mb-0.5"></i> Camera đang quét <b>TOÀN MÀN HÌNH</b>. Cứ giơ tem lọt vào camera, cách 10-15cm để máy tự động lấy nét nhé!
       </p>
     </div>
   </div>
@@ -887,7 +887,6 @@
       }
     }
 
-    // TÍCH HỢP NÚT QUÉT QR VÀO Ô MÃ TÀI SẢN
     function renderFormRows(existingRows = []) {
       const container = document.getElementById('formRowsContainer');
       container.innerHTML = "";
@@ -941,13 +940,23 @@
       lucide.createIcons();
     }
 
-    // LOGIC CAMERA QUÉT MÃ QR BẢN MỚI
+    // ==============================================
+    // LOGIC CAMERA BẢN MỚI NHẤT V2.5
+    // ==============================================
     function startQRScanner(rowIndex) {
       currentScanningRow = rowIndex;
       document.getElementById('qrModal').classList.remove('hidden');
 
       if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("qr-reader");
+        // CẤU HÌNH ĐỂ THƯ VIỆN ĐỌC DATA MATRIX (VÀ CÁC MÃ KHÁC)
+        html5QrCode = new Html5Qrcode("qr-reader", { 
+          formatsToSupport: [ 
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.DATA_MATRIX, // Bí quyết đọc tem nhỏ của bác đây
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.CODE_39
+          ] 
+        });
       }
 
       const qrCodeSuccessCallback = (decodedText, decodedResult) => {
@@ -971,10 +980,17 @@
         closeQRScanner();
       };
 
-      // Chỉnh khung thành HÌNH CHỮ NHẬT HẸP, bỏ aspectRatio để camera tự lấy nét
-      const config = { fps: 10, qrbox: { width: 200, height: 200 } };
+      // KHÔNG DÙNG qrbox ĐỂ CAMERA QUÉT TOÀN MÀN HÌNH VÀ TỰ LẤY NÉT CHUẨN XÁC NHẤT
+      const config = { fps: 15 };
 
-      html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
+      // YÊU CẦU CAMERA CHỤP PHÂN GIẢI HD ĐỂ NHÌN RÕ MÃ MA TRẬN NHỎ
+      const cameraConfig = { 
+        facingMode: "environment",
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      };
+
+      html5QrCode.start(cameraConfig, config, qrCodeSuccessCallback)
       .catch((err) => {
         alert("Lỗi truy cập Camera, vui lòng cấp quyền cho trình duyệt: " + err);
         closeQRScanner();
