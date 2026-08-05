@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.8)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.9)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,7 +19,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-  <!-- Thư viện quét mã QR/Barcode/DataMatrix -->
+  <!-- Thư viện quét mã QR/Barcode -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <!-- Firebase SDK -->
@@ -88,7 +88,6 @@
       user-select: text !important;
     }
 
-    /* Khung Nút Bấm Nhanh (Chips) */
     .chip-btn {
       background-color: #1e293b;
       color: #38bdf8;
@@ -107,7 +106,6 @@
       color: #ffffff;
     }
 
-    /* Khung A4 Cố định để xuất 1 trang duy nhất */
     #pdfRenderContainer {
       position: absolute;
       left: -9999px;
@@ -125,7 +123,6 @@
       overflow: hidden;
     }
 
-    /* CSS cho máy quét Toàn Màn Hình */
     #qr-reader {
       width: 100%;
       border: none !important;
@@ -279,24 +276,36 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v2.8</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v2.9</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
-  <!-- MODAL QUÉT MÃ QR/DATA MATRIX -->
-  <div id="qrModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-[60] hidden flex flex-col p-4">
+  <!-- MODAL QUÉT MÃ QR (Đã nâng cấp chọn ảnh từ thư viện) -->
+  <div id="qrModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[60] hidden flex flex-col p-4">
     <div class="flex justify-between items-center mb-4 pt-2">
       <h2 class="text-pink-500 font-black text-lg uppercase tracking-wide flex items-center gap-2">
         <i data-lucide="scan-line" class="w-6 h-6"></i> Quét Mã Máy
       </h2>
       <button onclick="closeQRScanner()" class="text-slate-400 p-2 bg-slate-800 border border-slate-700 rounded-full active:scale-95"><i data-lucide="x" class="w-5 h-5"></i></button>
     </div>
-    <div class="flex-1 flex flex-col justify-center items-center">
+    
+    <div class="flex-1 flex flex-col justify-center items-center w-full">
       <div class="w-full max-w-sm rounded-2xl overflow-hidden border-2 border-pink-500 shadow-xl bg-black relative">
         <div id="qr-reader"></div>
       </div>
-      <p class="text-emerald-400 font-bold text-xs mt-6 text-center bg-slate-800 px-4 py-3 rounded-lg border border-emerald-500/30 shadow-inner">
-        <i data-lucide="scan-face" class="w-4 h-4 inline-block mb-0.5"></i> Vui lòng đưa camera cách tem khoảng <b>10cm</b> để lấy nét. Trình duyệt sẽ tự động quét Data Matrix.
+      
+      <p class="text-slate-300 font-medium text-[11px] mt-4 text-center bg-slate-800 px-4 py-2.5 rounded-lg border border-slate-700 shadow-inner">
+        <i data-lucide="info" class="w-3.5 h-3.5 inline-block text-yellow-400 mb-0.5"></i> 
+        Đưa điện thoại ra xa <b>15-20cm</b> để camera lấy nét.
       </p>
+
+      <!-- Nút Chữa Cháy: Chọn ảnh từ thư viện -->
+      <div class="mt-6 w-full max-w-sm">
+        <label class="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-95 transition-transform cursor-pointer">
+          <i data-lucide="image-plus" class="w-5 h-5"></i> Chọn Ảnh Có Mã (Chắc Ăn 100%)
+          <input type="file" accept="image/*" class="hidden" onchange="handleQRFileScan(event)">
+        </label>
+        <p class="text-center text-[10px] text-slate-500 mt-2">Dùng camera gốc chụp ảnh tem cho sắc nét rồi bấm nút này tải lên để phần mềm đọc chữ.</p>
+      </div>
     </div>
   </div>
 
@@ -413,7 +422,7 @@
     </div>
   </div>
 
-  <!-- KHUNG MẪU XUẤT PDF TRỌN VẸN 1 TRANG -->
+  <!-- KHUNG MẪU XUẤT PDF -->
   <div id="pdfRenderContainer">
     <div id="pdfRenderArea">
       <div style="margin-bottom: 8px; text-align: left;">
@@ -518,11 +527,9 @@
     let isBatchMode = false;
     let selectedImageIds = new Set();
     
-    // Quản lý Viewer
     let activeModalList = [];
     let activeModalImgId = null;
     let currentModalIndex = -1;
-
     let activeEditingSheet = null; 
 
     // Quản lý QR Scanner
@@ -941,62 +948,76 @@
     }
 
     // ==============================================
-    // LOGIC CAMERA BẢN MỚI NHẤT V2.8 - MỞ CAMERA SAU
+    // LOGIC CAMERA V2.9 - THÊM TÍNH NĂNG QUÉT TỪ ẢNH CHỤP
     // ==============================================
     function startQRScanner(rowIndex) {
       currentScanningRow = rowIndex;
       document.getElementById('qrModal').classList.remove('hidden');
 
       if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("qr-reader", { 
-          formatsToSupport: [ 
-            Html5QrcodeSupportedFormats.QR_CODE,
-            Html5QrcodeSupportedFormats.DATA_MATRIX, // Bí quyết đọc tem nhỏ
-            Html5QrcodeSupportedFormats.CODE_128,
-            Html5QrcodeSupportedFormats.CODE_39
-          ] 
-        });
+        html5QrCode = new Html5Qrcode("qr-reader");
       }
 
       const qrCodeSuccessCallback = (decodedText, decodedResult) => {
         if (navigator.vibrate) navigator.vibrate(100);
-        
-        let text = decodedText.trim();
-        let maTaiSan = text;
-        let tenMay = "";
-
-        if (text.length > 5) {
-          maTaiSan = text.slice(-5);
-          tenMay = text.slice(0, -5).trim();
-        }
-
-        document.getElementById(`row_ma_${currentScanningRow}`).value = maTaiSan;
-        if (tenMay) {
-          document.getElementById(`row_ten_${currentScanningRow}`).value = tenMay;
-        }
-
-        closeQRScanner();
+        processScannedText(decodedText);
       };
 
-      // ĐÂY LÀ ĐOẠN SỬA LỖI: Chỉ dùng ĐÚNG 1 tham số cốt lõi để gọi Camera Sau
-      const cameraIdOrConfig = { facingMode: "environment" };
-      const config = { fps: 15 }; // Tốc độ quét mượt mà, bỏ ép phân giải để iPhone tự xử
+      // Chỉ ép quét định dạng QR Code để máy tính toán nhanh hơn
+      const config = { 
+        fps: 10,
+        formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ] 
+      };
 
-      html5QrCode.start(cameraIdOrConfig, config, qrCodeSuccessCallback)
+      html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
       .catch((err) => {
-        alert("Lỗi truy cập Camera: " + err);
-        closeQRScanner();
+        console.warn("Lỗi khởi động camera live: ", err);
+      });
+    }
+
+    function processScannedText(decodedText) {
+      let text = decodedText.trim();
+      let maTaiSan = text;
+      let tenMay = "";
+
+      if (text.length > 5) {
+        maTaiSan = text.slice(-5);
+        tenMay = text.slice(0, -5).trim();
+      }
+
+      document.getElementById(`row_ma_${currentScanningRow}`).value = maTaiSan;
+      if (tenMay) {
+        document.getElementById(`row_ten_${currentScanningRow}`).value = tenMay;
+      }
+      closeQRScanner();
+    }
+
+    // Tính năng quét từ file ảnh tải lên
+    function handleQRFileScan(event) {
+      if (!event.target.files || event.target.files.length === 0) return;
+      const file = event.target.files[0];
+
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("qr-reader");
+      }
+
+      // Quét trực tiếp file ảnh
+      html5QrCode.scanFile(file, true)
+      .then(decodedText => {
+        if (navigator.vibrate) navigator.vibrate(100);
+        processScannedText(decodedText);
+        event.target.value = ''; // Reset input
+      })
+      .catch(err => {
+        alert("⚠️ Không tìm thấy mã QR trong ảnh này. Bác thử chụp rõ nét hơn hoặc cắt bớt viền thừa xung quanh mã nhé!");
+        event.target.value = ''; // Reset input
       });
     }
 
     function closeQRScanner() {
       document.getElementById('qrModal').classList.add('hidden');
       if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().then((ignore) => {
-          // Camera stopped
-        }).catch((err) => {
-          console.log("Stop failed: ", err);
-        });
+        html5QrCode.stop().catch((err) => console.log("Stop failed: ", err));
       }
     }
 
@@ -1048,7 +1069,6 @@
       document.getElementById('formModal').classList.add('hidden');
     }
 
-    // TRA CỨU LỊCH SỬ MÁY
     function openSearchHistoryModal() {
       document.getElementById('searchModal').classList.remove('hidden');
       document.getElementById('searchResults').innerHTML = '<div class="text-center text-slate-500 text-xs py-10 mt-10"><i data-lucide="search" class="w-10 h-10 mx-auto text-slate-600 mb-2"></i> Nhập mã tài sản máy để tra cứu lịch sử.</div>';
@@ -1238,7 +1258,6 @@
       }
     }
 
-    // TOUCH & ZOOM CHO MODAL XEM ẢNH/PHIẾU
     function initTouchZoomPan() {
       const img = document.getElementById('modalImg');
       if (!img) return;
