@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v3.1)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v3.2)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,9 +18,6 @@
   <!-- Thư viện Xuất PDF A4 Chuẩn & Chụp ảnh HTML -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-
-  <!-- Thư viện quét mã QR/Barcode -->
-  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -121,36 +118,6 @@
       color: #000000;
       font-family: Arial, Helvetica, sans-serif;
       overflow: hidden;
-    }
-
-    #qr-reader {
-      width: 100%;
-      border: none !important;
-      border-radius: 16px;
-      overflow: hidden;
-    }
-    #qr-reader video {
-      object-fit: cover !important;
-      border-radius: 16px;
-    }
-    #qr-reader__scan_region {
-      background: #000;
-    }
-    #qr-reader__dashboard {
-      padding: 10px !important;
-      background: #1e293b;
-    }
-    #qr-reader__dashboard_section_csr span {
-      color: #fff !important;
-    }
-    #qr-reader button {
-      background-color: #ec4899;
-      color: white;
-      border: none;
-      padding: 8px 16px;
-      border-radius: 8px;
-      font-weight: bold;
-      margin-top: 10px;
     }
   </style>
 </head>
@@ -279,39 +246,8 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v3.1</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v3.2</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
-
-  <!-- MODAL QUÉT MÃ QR -->
-  <div id="qrModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[60] hidden flex flex-col p-4">
-    <div class="flex justify-between items-center mb-4 pt-2">
-      <h2 class="text-pink-500 font-black text-lg uppercase tracking-wide flex items-center gap-2">
-        <i data-lucide="scan-line" class="w-6 h-6"></i> Quét Mã Máy
-      </h2>
-      <button onclick="closeQRScanner()" class="text-slate-400 p-2 bg-slate-800 border border-slate-700 rounded-full active:scale-95"><i data-lucide="x" class="w-5 h-5"></i></button>
-    </div>
-    
-    <div class="flex-1 flex flex-col justify-center items-center w-full">
-      <!-- Vùng hiển thị camera -->
-      <div class="w-full max-w-sm border-2 border-pink-500 shadow-2xl bg-black relative" style="border-radius: 16px;">
-        <div id="qr-reader" style="width: 100%; border-radius: 16px;"></div>
-      </div>
-      
-      <p class="text-slate-300 font-medium text-[11px] mt-4 text-center bg-slate-800 px-4 py-2.5 rounded-lg border border-slate-700 shadow-inner">
-        <i data-lucide="info" class="w-3.5 h-3.5 inline-block text-yellow-400 mb-0.5"></i> 
-        Hãy đưa mã lọt vào khung vuông. Đặt xa <b>10-15cm</b> để lấy nét.
-      </p>
-
-      <!-- Nút Quét Bằng Apple Vision (Siêu mượt) -->
-      <div class="mt-6 w-full max-w-sm">
-        <label class="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-95 transition-transform cursor-pointer">
-          <i data-lucide="image-plus" class="w-5 h-5"></i> Tải Ảnh Có Mã QR Lên (100% Nhận)
-          <input type="file" accept="image/*" class="hidden" onchange="handleQRFileScan(event)">
-        </label>
-        <p class="text-center text-[10px] text-slate-500 mt-2">Dùng camera gốc chụp ảnh tem cho sắc nét, rồi bấm nút này tải lên. Web sẽ dùng AI của Apple để tự tìm mã.</p>
-      </div>
-    </div>
-  </div>
 
   <!-- MODAL TRA CỨU LỊCH SỬ MÁY -->
   <div id="searchModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-50 hidden flex flex-col p-4">
@@ -426,7 +362,7 @@
     </div>
   </div>
 
-  <!-- KHUNG MẪU XUẤT PDF -->
+  <!-- KHUNG MẪU XUẤT PDF TRỌN VẸN 1 TRANG -->
   <div id="pdfRenderContainer">
     <div id="pdfRenderArea">
       <div style="margin-bottom: 8px; text-align: left;">
@@ -535,10 +471,6 @@
     let activeModalImgId = null;
     let currentModalIndex = -1;
     let activeEditingSheet = null; 
-
-    // Quản lý QR Scanner
-    let html5QrCode = null;
-    let currentScanningRow = null;
 
     let scale = 1, posX = 0, posY = 0;
     let startX = 0, startY = 0;
@@ -910,22 +842,18 @@
             </div>
 
             <div class="grid grid-cols-2 gap-2 text-xs">
-              <div class="relative flex items-center">
-                <input type="text" id="row_ma_${i}" value="${rowData.ma || ''}" placeholder="Mã Tài Sản" class="w-full bg-slate-900 border border-slate-700 text-slate-100 rounded-lg pl-2 pr-8 py-1.5 outline-none focus:border-pink-500">
-                <button type="button" onclick="startQRScanner(${i})" class="absolute right-1 text-slate-400 hover:text-pink-400 p-1.5 bg-slate-800 rounded-md active:scale-95 transition-transform">
-                  <i data-lucide="qr-code" class="w-4 h-4"></i>
-                </button>
-              </div>
-              <input type="text" id="row_ten_${i}" value="${rowData.ten || ''}" placeholder="Tên Máy" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none">
+              <!-- ĐÃ XÓA HOÀN TOÀN NÚT QUÉT MÃ VÀ ĐỂ LẠI Ô NHẬP TAY GỌN GÀNG -->
+              <input type="text" id="row_ma_${i}" value="${rowData.ma || ''}" placeholder="Mã Tài Sản (Nhập tay)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none focus:border-pink-500">
+              <input type="text" id="row_ten_${i}" value="${rowData.ten || ''}" placeholder="Tên Máy" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none focus:border-pink-500">
             </div>
 
             <div class="grid grid-cols-2 gap-2 text-xs">
-              <input type="text" id="row_sl_${i}" value="${rowData.sl || ''}" placeholder="SL (Tự động = 1)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none">
-              <input type="text" id="row_phong_${i}" value="${rowData.phong || ''}" placeholder="Phòng/Ban" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none">
+              <input type="text" id="row_sl_${i}" value="${rowData.sl || ''}" placeholder="SL (Tự động = 1)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none focus:border-pink-500">
+              <input type="text" id="row_phong_${i}" value="${rowData.phong || ''}" placeholder="Phòng/Ban" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none focus:border-pink-500">
             </div>
 
             <div class="space-y-1">
-              <input type="text" id="row_trangthai_${i}" value="${rowData.hientrang || ''}" placeholder="Hiện Trạng (Ví dụ: Hư, Không chạy...)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1.5 outline-none">
+              <input type="text" id="row_trangthai_${i}" value="${rowData.hientrang || ''}" placeholder="Hiện Trạng (Ví dụ: Hư, Không chạy...)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1.5 outline-none focus:border-pink-500">
               <div class="flex gap-1 overflow-x-auto pt-0.5 pb-1">
                 <button type="button" onclick="setQuickValue('row_trangthai_${i}', 'Hư')" class="chip-btn">Hư</button>
                 <button type="button" onclick="setQuickValue('row_trangthai_${i}', 'Không chạy')" class="chip-btn">Không chạy</button>
@@ -936,7 +864,7 @@
             </div>
 
             <div class="space-y-1">
-              <input type="text" id="row_xacnhan_${i}" value="${rowData.xacnhan || ''}" placeholder="Xác nhận bên sửa chữa" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1.5 outline-none">
+              <input type="text" id="row_xacnhan_${i}" value="${rowData.xacnhan || ''}" placeholder="Xác nhận bên sửa chữa" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1.5 outline-none focus:border-pink-500">
               <div class="flex gap-1 overflow-x-auto pt-0.5 pb-1">
                 <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Đã sửa xong')" class="chip-btn">Đã sửa xong</button>
                 <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Hoạt động bình thường')" class="chip-btn">HĐ bình thường</button>
@@ -949,113 +877,6 @@
         `;
       }
       lucide.createIcons();
-    }
-
-    // ==============================================
-    // LOGIC CAMERA V3.1 - NATIVE APPLE VISION & FULL HD
-    // ==============================================
-    
-    function processScannedText(decodedText) {
-      let text = decodedText.trim();
-      let maTaiSan = text;
-      let tenMay = "";
-
-      // Logic cắt 5 số cuối làm mã
-      if (text.length > 5) {
-        maTaiSan = text.slice(-5);
-        tenMay = text.slice(0, -5).trim();
-      }
-
-      document.getElementById(`row_ma_${currentScanningRow}`).value = maTaiSan;
-      if (tenMay) {
-        document.getElementById(`row_ten_${currentScanningRow}`).value = tenMay;
-      }
-      closeQRScanner();
-    }
-
-    // 1. MỞ CAMERA TRỰC TIẾP (BẬT FULL HD 1080p BÊN TRONG CONFIG)
-    function startQRScanner(rowIndex) {
-      currentScanningRow = rowIndex;
-      document.getElementById('qrModal').classList.remove('hidden');
-
-      if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("qr-reader");
-      }
-
-      const qrCodeSuccessCallback = (decodedText) => {
-        if (navigator.vibrate) navigator.vibrate(100);
-        processScannedText(decodedText);
-      };
-
-      const config = { 
-        fps: 15,
-        qrbox: { width: 250, height: 250 },
-        // Ép Full HD ở đây sẽ không bị lỗi 4 keys
-        videoConstraints: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
-        }
-      };
-
-      html5QrCode.start(
-        { facingMode: "environment" }, 
-        config, 
-        qrCodeSuccessCallback
-      ).catch((err) => {
-        console.warn("Lỗi khởi động camera live: ", err);
-      });
-    }
-
-    // 2. CHỌN ẢNH TẢI LÊN (DÙNG TRỰC TIẾP AI CỦA APPLE)
-    async function handleQRFileScan(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-
-      const objectUrl = URL.createObjectURL(file);
-      const img = new Image();
-      
-      img.onload = async () => {
-        let isSuccess = false;
-
-        // PHÉP THUẬT NẰM Ở ĐÂY: Dùng BarcodeDetector gốc của Safari/Chrome
-        if ('BarcodeDetector' in window) {
-          try {
-            const detector = new BarcodeDetector();
-            const barcodes = await detector.detect(img);
-            if (barcodes.length > 0) {
-              if (navigator.vibrate) navigator.vibrate(100);
-              processScannedText(barcodes[0].rawValue);
-              isSuccess = true;
-            }
-          } catch (e) {
-            console.log("Native quét thất bại, chuyển sang thư viện web", e);
-          }
-        }
-
-        // DỰ PHÒNG: Nếu máy cũ không có Native AI thì xài lại thư viện cùi bắp
-        if (!isSuccess) {
-          if (!html5QrCode) html5QrCode = new Html5Qrcode("qr-reader");
-          try {
-            const decodedText = await html5QrCode.scanFile(file, false);
-            if (navigator.vibrate) navigator.vibrate(100);
-            processScannedText(decodedText);
-          } catch(err) {
-            alert("⚠️ Ối, quét mỏi mắt không ra mã bác ạ! Thôi bác chịu khó gõ tay nốt con này nhé, cắt bớt viền dư xung quanh ảnh thì web dễ đọc hơn!");
-          }
-        }
-
-        URL.revokeObjectURL(objectUrl);
-      };
-      
-      img.src = objectUrl;
-      event.target.value = ''; // Reset input để có thể chọn lại đúng ảnh đó
-    }
-
-    function closeQRScanner() {
-      document.getElementById('qrModal').classList.add('hidden');
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().catch((err) => console.log("Stop failed: ", err));
-      }
     }
 
     async function openFormModal() {
