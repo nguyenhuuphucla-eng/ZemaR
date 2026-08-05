@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.3)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.4)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -279,10 +279,10 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v2.3</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v2.4</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
-  <!-- MODAL QUÉT MÃ QR (Đã chỉnh khung ngắm nhỏ lại) -->
+  <!-- MODAL QUÉT MÃ QR (Đã chỉnh khung ngắm hình chữ nhật nhỏ) -->
   <div id="qrModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-[60] hidden flex flex-col p-4">
     <div class="flex justify-between items-center mb-4 pt-2">
       <h2 class="text-pink-500 font-black text-lg uppercase tracking-wide flex items-center gap-2">
@@ -295,7 +295,7 @@
         <div id="qr-reader"></div>
       </div>
       <p class="text-emerald-400 font-bold text-xs mt-6 text-center bg-slate-800 px-4 py-3 rounded-lg border border-emerald-500/30 shadow-inner">
-        <i data-lucide="info" class="w-4 h-4 inline-block mb-0.5"></i> MẸO: Khung đã được thu nhỏ cho mã QR bé. Hãy để điện thoại cách xa mã khoảng <b>10-15cm</b> để camera kịp lấy nét (đừng dí sát quá sẽ bị mờ).
+        <i data-lucide="info" class="w-4 h-4 inline-block mb-0.5"></i> Căn ngang mã tài sản lọt vào trong khung vuông. Đừng dí quá sát để camera kịp lấy nét nhé!
       </p>
     </div>
   </div>
@@ -971,8 +971,8 @@
         closeQRScanner();
       };
 
-      // Đã thu nhỏ khung qrbox còn 150px, tăng fps lên 15 để nhạy hơn
-      const config = { fps: 15, qrbox: { width: 150, height: 150 }, aspectRatio: 1.0 };
+      // Chỉnh khung thành HÌNH CHỮ NHẬT HẸP, bỏ aspectRatio để camera tự lấy nét
+      const config = { fps: 10, qrbox: { width: 200, height: 200 } };
 
       html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
       .catch((err) => {
