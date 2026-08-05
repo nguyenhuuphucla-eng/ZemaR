@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.9)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v3.0)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -19,7 +19,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
-  <!-- Thư viện quét mã QR/Barcode -->
+  <!-- Thư viện quét mã QR/Barcode nguyên bản -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
   <!-- Firebase SDK -->
@@ -123,12 +123,16 @@
       overflow: hidden;
     }
 
+    /* Đảm bảo camera web không bị biến dạng tỷ lệ */
     #qr-reader {
       width: 100%;
       border: none !important;
+      border-radius: 16px;
+      overflow: hidden;
     }
     #qr-reader video {
-      object-fit: cover;
+      object-fit: cover !important;
+      border-radius: 16px;
     }
     #qr-reader__scan_region {
       background: #000;
@@ -276,10 +280,10 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v2.9</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v3.0</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
-  <!-- MODAL QUÉT MÃ QR (Đã nâng cấp chọn ảnh từ thư viện) -->
+  <!-- MODAL QUÉT MÃ QR (Đơn giản hóa triệt để) -->
   <div id="qrModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[60] hidden flex flex-col p-4">
     <div class="flex justify-between items-center mb-4 pt-2">
       <h2 class="text-pink-500 font-black text-lg uppercase tracking-wide flex items-center gap-2">
@@ -289,22 +293,23 @@
     </div>
     
     <div class="flex-1 flex flex-col justify-center items-center w-full">
-      <div class="w-full max-w-sm rounded-2xl overflow-hidden border-2 border-pink-500 shadow-xl bg-black relative">
-        <div id="qr-reader"></div>
+      <!-- Vùng hiển thị camera -->
+      <div class="w-full max-w-sm border-2 border-pink-500 shadow-2xl bg-black relative" style="border-radius: 16px;">
+        <div id="qr-reader" style="width: 100%; border-radius: 16px;"></div>
       </div>
       
       <p class="text-slate-300 font-medium text-[11px] mt-4 text-center bg-slate-800 px-4 py-2.5 rounded-lg border border-slate-700 shadow-inner">
         <i data-lucide="info" class="w-3.5 h-3.5 inline-block text-yellow-400 mb-0.5"></i> 
-        Đưa điện thoại ra xa <b>15-20cm</b> để camera lấy nét.
+        Đưa điện thoại ra xa <b>15-20cm</b> để camera web lấy nét. 
       </p>
 
       <!-- Nút Chữa Cháy: Chọn ảnh từ thư viện -->
       <div class="mt-6 w-full max-w-sm">
         <label class="flex items-center justify-center gap-2 w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-95 transition-transform cursor-pointer">
-          <i data-lucide="image-plus" class="w-5 h-5"></i> Chọn Ảnh Có Mã (Chắc Ăn 100%)
+          <i data-lucide="image-plus" class="w-5 h-5"></i> Chọn Ảnh Có Mã (Chắc Ăn Nhất)
           <input type="file" accept="image/*" class="hidden" onchange="handleQRFileScan(event)">
         </label>
-        <p class="text-center text-[10px] text-slate-500 mt-2">Dùng camera gốc chụp ảnh tem cho sắc nét rồi bấm nút này tải lên để phần mềm đọc chữ.</p>
+        <p class="text-center text-[10px] text-slate-500 mt-2">Mẹo: Dùng camera gốc chụp mã rồi tải ảnh lên đây để điền tự động.</p>
       </div>
     </div>
   </div>
@@ -422,7 +427,7 @@
     </div>
   </div>
 
-  <!-- KHUNG MẪU XUẤT PDF -->
+  <!-- KHUNG MẪU XUẤT PDF TRỌN VẸN 1 TRANG -->
   <div id="pdfRenderContainer">
     <div id="pdfRenderArea">
       <div style="margin-bottom: 8px; text-align: left;">
@@ -948,7 +953,7 @@
     }
 
     // ==============================================
-    // LOGIC CAMERA V2.9 - THÊM TÍNH NĂNG QUÉT TỪ ẢNH CHỤP
+    // LOGIC CAMERA V3.0 - NGUYÊN BẢN, KHÔNG ÉP CẤU HÌNH
     // ==============================================
     function startQRScanner(rowIndex) {
       currentScanningRow = rowIndex;
@@ -963,14 +968,13 @@
         processScannedText(decodedText);
       };
 
-      // Chỉ ép quét định dạng QR Code để máy tính toán nhanh hơn
-      const config = { 
-        fps: 10,
-        formatsToSupport: [ Html5QrcodeSupportedFormats.QR_CODE ] 
-      };
-
-      html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
-      .catch((err) => {
+      // XÓA TẤT CẢ LỆNH RƯỜM RÀ: Để thư viện tự động lo liệu hoàn toàn
+      // Chỉ yêu cầu duy nhất: Mở camera sau (environment)
+      html5QrCode.start(
+        { facingMode: "environment" }, 
+        { fps: 10 }, 
+        qrCodeSuccessCallback
+      ).catch((err) => {
         console.warn("Lỗi khởi động camera live: ", err);
       });
     }
@@ -992,7 +996,7 @@
       closeQRScanner();
     }
 
-    // Tính năng quét từ file ảnh tải lên
+    // Tính năng quét từ file ảnh tải lên (Dự phòng cực kỳ hiệu quả)
     function handleQRFileScan(event) {
       if (!event.target.files || event.target.files.length === 0) return;
       const file = event.target.files[0];
@@ -1001,16 +1005,15 @@
         html5QrCode = new Html5Qrcode("qr-reader");
       }
 
-      // Quét trực tiếp file ảnh
       html5QrCode.scanFile(file, true)
       .then(decodedText => {
         if (navigator.vibrate) navigator.vibrate(100);
         processScannedText(decodedText);
-        event.target.value = ''; // Reset input
+        event.target.value = ''; 
       })
       .catch(err => {
-        alert("⚠️ Không tìm thấy mã QR trong ảnh này. Bác thử chụp rõ nét hơn hoặc cắt bớt viền thừa xung quanh mã nhé!");
-        event.target.value = ''; // Reset input
+        alert("⚠️ Không tìm thấy mã trong ảnh này. Bác thử chụp rõ nét hơn xíu nhé!");
+        event.target.value = ''; 
       });
     }
 
