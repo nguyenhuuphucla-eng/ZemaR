@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v1.9)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.2)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -18,6 +18,9 @@
   <!-- Thư viện Xuất PDF A4 Chuẩn & Chụp ảnh HTML -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+  <!-- Thư viện quét mã QR/Barcode -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -120,6 +123,31 @@
       color: #000000;
       font-family: Arial, Helvetica, sans-serif;
       overflow: hidden;
+    }
+
+    /* CSS cho máy quét QR */
+    #qr-reader {
+      width: 100%;
+      border: none !important;
+    }
+    #qr-reader__scan_region {
+      background: #000;
+    }
+    #qr-reader__dashboard {
+      padding: 10px !important;
+      background: #1e293b;
+    }
+    #qr-reader__dashboard_section_csr span {
+      color: #fff !important;
+    }
+    #qr-reader button {
+      background-color: #ec4899;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -251,8 +279,26 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v1.9</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v2.2</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
+
+  <!-- MODAL QUÉT MÃ QR -->
+  <div id="qrModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-[60] hidden flex flex-col p-4">
+    <div class="flex justify-between items-center mb-4 pt-2">
+      <h2 class="text-pink-500 font-black text-lg uppercase tracking-wide flex items-center gap-2">
+        <i data-lucide="scan-line" class="w-6 h-6"></i> Quét Mã Tài Sản
+      </h2>
+      <button onclick="closeQRScanner()" class="text-slate-400 p-2 bg-slate-800 border border-slate-700 rounded-full active:scale-95"><i data-lucide="x" class="w-5 h-5"></i></button>
+    </div>
+    <div class="flex-1 flex flex-col justify-center items-center">
+      <div class="w-full max-w-sm rounded-2xl overflow-hidden border-2 border-pink-500 shadow-xl bg-black relative">
+        <div id="qr-reader"></div>
+      </div>
+      <p class="text-slate-400 text-xs mt-6 text-center bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 shadow-inner">
+        Đưa camera về phía mã QR hoặc Barcode. App sẽ tự động cắt 5 số cuối làm Mã Tài Sản, phần còn lại làm Tên Máy.
+      </p>
+    </div>
+  </div>
 
   <!-- MODAL TRA CỨU LỊCH SỬ MÁY -->
   <div id="searchModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-50 hidden flex flex-col p-4">
@@ -268,7 +314,6 @@
       </div>
 
       <div id="searchResults" class="flex-1 overflow-y-auto space-y-3 pb-6">
-        <!-- Results injected here -->
       </div>
     </div>
   </div>
@@ -472,10 +517,17 @@
 
     let isBatchMode = false;
     let selectedImageIds = new Set();
+    
+    // Quản lý Viewer
+    let activeModalList = [];
     let activeModalImgId = null;
     let currentModalIndex = -1;
 
-    let activeEditingSheet = null; // Lưu thông tin phiếu đang điền dở dang (< 10 mục)
+    let activeEditingSheet = null; 
+
+    // Quản lý QR Scanner
+    let html5QrCode = null;
+    let currentScanningRow = null;
 
     let scale = 1, posX = 0, posY = 0;
     let startX = 0, startY = 0;
@@ -677,7 +729,6 @@
           imgContainer.appendChild(badge);
         }
 
-        // Nhãn phân biệt nếu là Phiếu Sửa Máy
         if (item.folder === 'phieu_sua') {
           const badge = document.createElement('div');
           badge.className = "absolute bottom-2 left-2 bg-emerald-600/90 text-white text-[9px] px-2 py-0.5 rounded-md font-bold shadow-md z-10";
@@ -836,6 +887,7 @@
       }
     }
 
+    // TÍCH HỢP NÚT QUÉT QR VÀO Ô MÃ TÀI SẢN
     function renderFormRows(existingRows = []) {
       const container = document.getElementById('formRowsContainer');
       container.innerHTML = "";
@@ -848,18 +900,22 @@
             </div>
 
             <div class="grid grid-cols-2 gap-2 text-xs">
-              <input type="text" id="row_ma_${i}" value="${rowData.ma || ''}" placeholder="Mã Tài Sản (5 số)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
-              <input type="text" id="row_ten_${i}" value="${rowData.ten || ''}" placeholder="Tên Máy" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+              <div class="relative flex items-center">
+                <input type="text" id="row_ma_${i}" value="${rowData.ma || ''}" placeholder="Mã Tài Sản" class="w-full bg-slate-900 border border-slate-700 text-slate-100 rounded-lg pl-2 pr-8 py-1.5 outline-none focus:border-pink-500">
+                <button type="button" onclick="startQRScanner(${i})" class="absolute right-1 text-slate-400 hover:text-pink-400 p-1.5 bg-slate-800 rounded-md active:scale-95 transition-transform">
+                  <i data-lucide="qr-code" class="w-4 h-4"></i>
+                </button>
+              </div>
+              <input type="text" id="row_ten_${i}" value="${rowData.ten || ''}" placeholder="Tên Máy" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none">
             </div>
 
             <div class="grid grid-cols-2 gap-2 text-xs">
-              <input type="text" id="row_sl_${i}" value="${rowData.sl || ''}" placeholder="SL (Tự động = 1)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
-              <input type="text" id="row_phong_${i}" value="${rowData.phong || ''}" placeholder="Phòng/Ban" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_sl_${i}" value="${rowData.sl || ''}" placeholder="SL (Tự động = 1)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none">
+              <input type="text" id="row_phong_${i}" value="${rowData.phong || ''}" placeholder="Phòng/Ban" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none">
             </div>
 
-            <!-- Ô HIỆN TRẠNG & NÚT BẤM NHANH -->
             <div class="space-y-1">
-              <input type="text" id="row_trangthai_${i}" value="${rowData.hientrang || ''}" placeholder="Hiện Trạng (Ví dụ: Hư, Không chạy...)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_trangthai_${i}" value="${rowData.hientrang || ''}" placeholder="Hiện Trạng (Ví dụ: Hư, Không chạy...)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1.5 outline-none">
               <div class="flex gap-1 overflow-x-auto pt-0.5 pb-1">
                 <button type="button" onclick="setQuickValue('row_trangthai_${i}', 'Hư')" class="chip-btn">Hư</button>
                 <button type="button" onclick="setQuickValue('row_trangthai_${i}', 'Không chạy')" class="chip-btn">Không chạy</button>
@@ -869,9 +925,8 @@
               </div>
             </div>
 
-            <!-- Ô XÁC NHẬN BÊN SỬA & NÚT BẤM NHANH -->
             <div class="space-y-1">
-              <input type="text" id="row_xacnhan_${i}" value="${rowData.xacnhan || ''}" placeholder="Xác nhận bên sửa chữa" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_xacnhan_${i}" value="${rowData.xacnhan || ''}" placeholder="Xác nhận bên sửa chữa" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1.5 outline-none">
               <div class="flex gap-1 overflow-x-auto pt-0.5 pb-1">
                 <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Đã sửa xong')" class="chip-btn">Đã sửa xong</button>
                 <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Hoạt động bình thường')" class="chip-btn">HĐ bình thường</button>
@@ -886,6 +941,58 @@
       lucide.createIcons();
     }
 
+    // LOGIC CAMERA QUÉT MÃ QR
+    function startQRScanner(rowIndex) {
+      currentScanningRow = rowIndex;
+      document.getElementById('qrModal').classList.remove('hidden');
+
+      if (!html5QrCode) {
+        html5QrCode = new Html5Qrcode("qr-reader");
+      }
+
+      // HÀM XỬ LÝ KHI QUÉT THÀNH CÔNG VÀ CẮT CHUỖI
+      const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+        if (navigator.vibrate) navigator.vibrate(100);
+        
+        let text = decodedText.trim();
+        let maTaiSan = text;
+        let tenMay = "";
+
+        // Tách 5 ký tự cuối cho Mã, phần còn lại cho Tên
+        if (text.length > 5) {
+          maTaiSan = text.slice(-5);
+          tenMay = text.slice(0, -5).trim();
+        }
+
+        // Gán giá trị vào các ô tương ứng
+        document.getElementById(`row_ma_${currentScanningRow}`).value = maTaiSan;
+        if (tenMay) {
+          document.getElementById(`row_ten_${currentScanningRow}`).value = tenMay;
+        }
+
+        closeQRScanner();
+      };
+
+      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+      html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
+      .catch((err) => {
+        alert("Lỗi truy cập Camera, vui lòng cấp quyền cho trình duyệt: " + err);
+        closeQRScanner();
+      });
+    }
+
+    function closeQRScanner() {
+      document.getElementById('qrModal').classList.add('hidden');
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then((ignore) => {
+          // Camera stopped
+        }).catch((err) => {
+          console.log("Stop failed: ", err);
+        });
+      }
+    }
+
     async function openFormModal() {
       document.getElementById('formBranch').value = currentBranch;
       const [y, m, d] = selectedDate.split('-');
@@ -893,7 +1000,6 @@
       document.getElementById('formBenSuaChua').value = "Nguyễn Hữu Phúc";
       document.getElementById('formChucVuSuaChua').value = "NVSC";
 
-      // Kiểm tra xem trong ngày & chi nhánh này đã có phiếu nào chưa đầy 10 mục không
       activeEditingSheet = null;
       try {
         const snapshot = await firestore.collection("repair_sheets")
@@ -935,7 +1041,7 @@
       document.getElementById('formModal').classList.add('hidden');
     }
 
-    // TRA CỨU MÁY SỬA CHỮA TRÊN CLOUD
+    // TRA CỨU LỊCH SỬ MÁY
     function openSearchHistoryModal() {
       document.getElementById('searchModal').classList.remove('hidden');
       document.getElementById('searchResults').innerHTML = '<div class="text-center text-slate-500 text-xs py-10 mt-10"><i data-lucide="search" class="w-10 h-10 mx-auto text-slate-600 mb-2"></i> Nhập mã tài sản máy để tra cứu lịch sử.</div>';
@@ -1061,80 +1167,56 @@
       const filenameStr = `Phieu_De_Xuat_Sua_Chua_${branch.replace(/\s+/g, '_')}_${d}-${m}-${y}.pdf`;
 
       try {
-        // 1. Chụp ảnh khung PDF để lưu lên cloud vào thư mục "phieu_sua"
         const canvas = await html2canvas(element, { scale: 1.5, useCORS: true });
         const sheetImgDataUrl = canvas.toDataURL('image/jpeg', 0.85);
 
-        // 2. Lưu hoặc Cập nhật vào Firestore (repair_sheets và repairs và photos)
         let sheetId = activeEditingSheet ? activeEditingSheet.id : null;
         let photoDocId = activeEditingSheet ? activeEditingSheet.photoId : null;
 
         const batch = firestore.batch();
 
         if (sheetId) {
-          // Cập nhật phiếu cũ
           const sheetRef = firestore.collection("repair_sheets").doc(sheetId);
           batch.update(sheetRef, {
             rows: currentRows,
             nguoiDeXuat, chucVuDeXuat, benSuaChua, chucVuSuaChua
           });
-
-          // Xóa các records cũ trong repairs của phiếu này để ghi lại mới
           const oldRepairsSnap = await firestore.collection("repairs").where("sheetId", "==", sheetId).get();
           oldRepairsSnap.forEach(doc => batch.delete(doc.ref));
         } else {
-          // Tạo phiếu mới
           const sheetRef = firestore.collection("repair_sheets").doc();
           sheetId = sheetRef.id;
           const photoRef = firestore.collection("photos").doc();
           photoDocId = photoRef.id;
 
           batch.set(sheetRef, {
-            branch,
-            dateKey: selectedDate,
-            dateStr,
+            branch, dateKey: selectedDate, dateStr,
             nguoiDeXuat, chucVuDeXuat, benSuaChua, chucVuSuaChua,
-            rows: currentRows,
-            photoId: photoDocId,
+            rows: currentRows, photoId: photoDocId,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
 
           batch.set(photoRef, {
-            branch,
-            date: selectedDate,
-            folder: "phieu_sua",
-            capturedDate: dateStr,
-            dataUrl: sheetImgDataUrl,
-            sheetId: sheetId,
+            branch, date: selectedDate, folder: "phieu_sua",
+            capturedDate: dateStr, dataUrl: sheetImgDataUrl, sheetId: sheetId,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
         }
 
-        // Thêm lại các máy vào bảng repairs phục vụ Tra Cứu
         currentRows.forEach(row => {
           const repairRef = firestore.collection("repairs").doc();
           batch.set(repairRef, {
-            sheetId: sheetId,
-            branch: branch,
-            dateStr: dateStr,
-            dateKey: selectedDate,
-            nguoiDeXuat: nguoiDeXuat,
-            ma: row.ma,
-            ten: row.ten,
-            sl: row.sl,
-            phong: row.phong,
-            hientrang: row.hientrang,
-            xacnhan: row.xacnhan,
+            sheetId: sheetId, branch: branch, dateStr: dateStr, dateKey: selectedDate,
+            nguoiDeXuat: nguoiDeXuat, ma: row.ma, ten: row.ten, sl: row.sl, phong: row.phong,
+            hientrang: row.hientrang, xacnhan: row.xacnhan,
             createdAt: firebase.firestore.FieldValue.serverTimestamp()
           });
         });
 
         await batch.commit();
 
-        // 3. Xuất file PDF tải về máy
         const opt = {
-          margin: 0,
-          filename: filenameStr,
+          margin: 0, filename: filenameStr,
           image: { type: 'jpeg', quality: 0.98 },
           html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -1228,27 +1310,28 @@
     }
 
     function openSingleImageModal(item) {
-      currentModalIndex = currentFolderPhotosCache.findIndex(p => p.id === item.id);
+      activeModalList = currentFolderPhotosCache;
+      currentModalIndex = activeModalList.findIndex(p => p.id === item.id);
       showModalImageAtIndex(currentModalIndex);
       document.getElementById('imageModal').classList.remove('hidden');
     }
 
     function showModalImageAtIndex(index) {
-      if (!currentFolderPhotosCache || currentFolderPhotosCache.length === 0) return;
-      if (index < 0 || index >= currentFolderPhotosCache.length) return;
+      if (!activeModalList || activeModalList.length === 0) return;
+      if (index < 0 || index >= activeModalList.length) return;
 
       currentModalIndex = index;
-      const item = currentFolderPhotosCache[currentModalIndex];
+      const item = activeModalList[currentModalIndex];
       activeModalImgId = item.id;
 
       document.getElementById('modalImg').src = item.dataUrl;
-      document.getElementById('modalImageCounter').innerText = `${currentModalIndex + 1}/${currentFolderPhotosCache.length}`;
+      document.getElementById('modalImageCounter').innerText = `${currentModalIndex + 1}/${activeModalList.length}`;
       resetZoomPan();
     }
 
     function navigateModalPhoto(direction) {
       const newIndex = currentModalIndex + direction;
-      if (newIndex >= 0 && newIndex < currentFolderPhotosCache.length) {
+      if (newIndex >= 0 && newIndex < activeModalList.length) {
         showModalImageAtIndex(newIndex);
       }
     }
@@ -1280,7 +1363,6 @@
       if (photoDoc.exists) {
         const data = photoDoc.data();
         if (data.sheetId) {
-          // Xóa phiếu sửa máy và các lịch sử repairs liên quan
           await firestore.collection("repair_sheets").doc(data.sheetId).delete();
           const repairsSnap = await firestore.collection("repairs").where("sheetId", "==", data.sheetId).get();
           const batch = firestore.batch();
@@ -1303,7 +1385,7 @@
 
     async function shareSingleImage() {
       if (!activeModalImgId) return;
-      const item = currentFolderPhotosCache.find(p => p.id === activeModalImgId);
+      const item = activeModalList.find(p => p.id === activeModalImgId);
       if (!item) return;
 
       const filename = `ZemaR_${item.branch}_${item.date}.jpg`;
