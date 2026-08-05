@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v1.8)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v1.9)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,8 +15,9 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Thư viện Xuất PDF A4 Chuẩn -->
+  <!-- Thư viện Xuất PDF A4 Chuẩn & Chụp ảnh HTML -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
   <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -132,7 +133,7 @@
         <div>
           <h1 class="text-2xl font-black tracking-wider text-pink-500 leading-none">ZEMA R</h1>
           <span class="text-xs text-slate-400 font-bold tracking-wide flex items-center gap-1">
-            Quản Lý Ảnh <span id="cloudStatus" class="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="Đã nối Cloud"></span>
+            Quản Lý Ảnh & Phiếu <span id="cloudStatus" class="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="Đã nối Cloud"></span>
           </span>
         </div>
       </div>
@@ -166,7 +167,7 @@
       <div id="calendarBody" class="hidden p-3 pt-0 border-t border-slate-800/60">
         <div class="flex justify-between items-center my-2 px-1">
           <button onclick="changeMonth(-1)" class="p-1 hover:bg-slate-800 rounded-lg text-slate-400"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
-          <span class="text-xs font-bold text-slate-300 uppercase">Chọn ngày xem ảnh</span>
+          <span class="text-xs font-bold text-slate-300 uppercase">Chọn ngày xem dữ liệu</span>
           <button onclick="changeMonth(1)" class="p-1 hover:bg-slate-800 rounded-lg text-slate-400"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
         </div>
 
@@ -178,7 +179,7 @@
       </div>
     </section>
 
-    <!-- Thư mục & Nút Thao tác đã được sắp xếp lại -->
+    <!-- Thư mục & Nút Thao tác -->
     <section class="space-y-3">
       <!-- Row 1: Các Tab Thư mục -->
       <div class="flex bg-slate-900 p-1.5 rounded-xl border border-slate-800 w-full overflow-x-auto gap-1 shadow-lg">
@@ -216,13 +217,13 @@
         <input type="file" id="cameraInput" accept="image/*" capture="environment" class="hidden" onchange="handleImageCapture(event)">
       </div>
 
-      <!-- Thanh chọn nhiều ảnh -->
+      <!-- Thanh chọn nhiều mục -->
       <div id="batchBar" class="hidden bg-slate-900 border border-pink-500/40 rounded-xl p-2.5 flex flex-col gap-2 shadow-lg mt-2">
         <div class="flex items-center justify-between">
           <button onclick="toggleSelectAll()" class="bg-slate-800 hover:bg-slate-700 text-pink-400 text-xs px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 border border-pink-500/30">
             <i data-lucide="check-square" class="w-3.5 h-3.5"></i> <span id="btnSelectAllText">Chọn Tất Cả</span>
           </button>
-          <span class="text-xs font-semibold text-slate-200">Đã chọn <b id="batchCount" class="text-pink-400">0</b> ảnh</span>
+          <span class="text-xs font-semibold text-slate-200">Đã chọn <b id="batchCount" class="text-pink-400">0</b> mục</span>
           <button onclick="exitBatchMode()" class="bg-slate-800 text-slate-400 text-xs px-2 py-1 rounded-lg">Thoát</button>
         </div>
 
@@ -230,19 +231,19 @@
           <button onclick="batchShare()" class="flex-1 bg-pink-600 hover:bg-pink-500 text-white text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform">
             <i data-lucide="share-2" class="w-3.5 h-3.5"></i> Chia Sẻ
           </button>
-          <button onclick="batchDelete()" class="bg-red-600 hover:bg-red-500 text-white text-xs px-4 py-2 rounded-lg font-bold flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform">
+          <button onclick="batchDelete()" class="flex-1 bg-red-600 hover:bg-red-500 text-white text-xs py-2 rounded-lg font-bold flex items-center justify-center gap-1 shadow-md active:scale-95 transition-transform">
             <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Xóa
           </button>
         </div>
       </div>
     </section>
 
-    <!-- Lưới Ảnh -->
+    <!-- Lưới Hiển Thị Ảnh / Phiếu -->
     <section>
       <div id="imageGrid" class="grid grid-cols-2 gap-3"></div>
       <div id="emptyState" class="hidden text-center py-12 text-slate-500 space-y-2">
         <i data-lucide="cloud-off" class="w-10 h-10 mx-auto text-slate-600"></i>
-        <p class="text-xs font-medium">Chưa có ảnh nào trên Cloud cho mục này</p>
+        <p class="text-xs font-medium">Chưa có dữ liệu nào trên Cloud cho mục này</p>
       </div>
     </section>
 
@@ -250,7 +251,7 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v1.8</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v1.9</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
   <!-- MODAL TRA CỨU LỊCH SỬ MÁY -->
@@ -278,7 +279,7 @@
       <div class="flex justify-between items-center border-b border-slate-800 pb-3">
         <div class="flex items-center gap-2">
           <i data-lucide="file-text" class="w-5 h-5 text-emerald-400"></i>
-          <h2 class="text-base font-bold text-pink-500 uppercase tracking-wide">TẠO PHIẾU ĐỀ XUẤT SỬA CHỮA MÁY</h2>
+          <h2 class="text-base font-bold text-pink-500 uppercase tracking-wide" id="formTitleText">TẠO PHIẾU ĐỀ XUẤT SỬA CHỮA MÁY</h2>
         </div>
         <button onclick="closeFormModal()" class="text-slate-400 p-1"><i data-lucide="x" class="w-5 h-5"></i></button>
       </div>
@@ -321,7 +322,7 @@
 
       <!-- Danh sách máy -->
       <div class="space-y-2">
-        <span class="text-xs font-bold text-slate-300 block">Danh Sách Máy Sửa:</span>
+        <span class="text-xs font-bold text-slate-300 block" id="formSlotStatus">Danh Sách Máy Sửa (Đang điền vào phiếu):</span>
         <div id="formRowsContainer" class="space-y-3 max-h-[42vh] overflow-y-auto pr-1">
         </div>
       </div>
@@ -329,20 +330,20 @@
       <div class="flex gap-2 pt-2 border-t border-slate-800">
         <button onclick="closeFormModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 rounded-xl text-xs">Hủy Bỏ</button>
         <button onclick="exportFormToPDF()" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg flex items-center justify-center gap-1.5">
-          <i data-lucide="download" class="w-4 h-4"></i> Lưu & Tải PDF
+          <i data-lucide="download" class="w-4 h-4"></i> Lưu & Xuất Phiếu PDF
         </button>
       </div>
     </div>
   </div>
 
-  <!-- VIEWER XEM ẢNH -->
+  <!-- VIEWER XEM ẢNH HOẶC PHIẾU -->
   <div id="imageModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4 select-none">
     <div class="flex justify-between items-center text-white z-10">
       <div class="flex items-center gap-2">
         <span id="modalImageCounter" class="bg-slate-800 text-pink-400 text-xs font-bold px-2.5 py-1 rounded-xl border border-slate-700">0/0</span>
         <div class="flex gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-700">
           <button onclick="changeImageFolder('may')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Máy</button>
-          <button onclick="changeImageFolder('phieu_sua')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Phiếu Sửa</button>
+          <button onclick="changeImageFolder('phieu_sua')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Phiếu</button>
           <button onclick="changeImageFolder('hoa_don')" class="px-2 py-1 text-[10px] font-bold rounded-lg bg-slate-800 hover:bg-pink-600 text-slate-200">Hóa Đơn</button>
         </div>
       </div>
@@ -474,6 +475,8 @@
     let activeModalImgId = null;
     let currentModalIndex = -1;
 
+    let activeEditingSheet = null; // Lưu thông tin phiếu đang điền dở dang (< 10 mục)
+
     let scale = 1, posX = 0, posY = 0;
     let startX = 0, startY = 0;
     let swipeStartX = 0, swipeStartY = 0;
@@ -486,7 +489,6 @@
       await renderCalendar();
       listenToCloudPhotos();
       initTouchZoomPan();
-      renderFormRows();
     });
 
     function initBranches() {
@@ -550,7 +552,7 @@
       titleElem.innerText = `Ngày ${sD}/${sM}/${sY}`;
       monthYearElem.innerText = `${monthNames[calendarMonth]} / ${calendarYear}`;
 
-      const datesWithPhotos = new Set();
+      const datesWithData = new Set();
       try {
         const snapshot = await firestore.collection("photos")
           .where("branch", "==", currentBranch)
@@ -558,14 +560,14 @@
 
         snapshot.forEach(doc => {
           const d = doc.data().date;
-          if (d) datesWithPhotos.add(d);
+          if (d) datesWithData.add(d);
         });
       } catch (err) {
         console.error("Lỗi tải lịch:", err);
       }
 
       tempPhotosMap.forEach(p => {
-        if (p.branch === currentBranch) datesWithPhotos.add(p.date);
+        if (p.branch === currentBranch) datesWithData.add(p.date);
       });
 
       const firstDay = new Date(calendarYear, calendarMonth, 1).getDay();
@@ -576,11 +578,11 @@
 
       for (let day = 1; day <= totalDays; day++) {
         const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        const hasPhotos = datesWithPhotos.has(dateStr);
+        const hasData = datesWithData.has(dateStr);
         const isSelected = dateStr === selectedDate;
 
         const dayElem = document.createElement('div');
-        dayElem.className = `calendar-day ${hasPhotos ? 'has-photos' : 'no-photos'} ${isSelected ? 'selected-day' : ''}`;
+        dayElem.className = `calendar-day ${hasData ? 'has-photos' : 'no-photos'} ${isSelected ? 'selected-day' : ''}`;
         dayElem.innerText = day;
         dayElem.onclick = (e) => {
           e.stopPropagation();
@@ -618,11 +620,11 @@
         .where("branch", "==", currentBranch)
         .where("date", "==", selectedDate)
         .onSnapshot((snapshot) => {
-          const cloudPhotos = [];
+          const cloudItems = [];
           snapshot.forEach(doc => {
-            cloudPhotos.push({ id: doc.id, ...doc.data() });
+            cloudItems.push({ id: doc.id, ...doc.data() });
           });
-          lastCloudPhotosCache = cloudPhotos;
+          lastCloudPhotosCache = cloudItems;
           renderPhotosGrid();
         }, (error) => {
           console.error("Lỗi Cloud:", error);
@@ -637,17 +639,17 @@
         p => p.branch === currentBranch && p.date === selectedDate
       );
 
-      const allPhotos = [...tempPhotos, ...lastCloudPhotosCache];
+      const allItems = [...tempPhotos, ...lastCloudPhotosCache];
 
-      document.getElementById('count-tat_ca').innerText = `(${allPhotos.length})`;
-      document.getElementById('count-may').innerText = `(${allPhotos.filter(p => p.folder === 'may').length})`;
-      document.getElementById('count-phieu_sua').innerText = `(${allPhotos.filter(p => p.folder === 'phieu_sua').length})`;
-      document.getElementById('count-hoa_don').innerText = `(${allPhotos.filter(p => p.folder === 'hoa_don').length})`;
+      document.getElementById('count-tat_ca').innerText = `(${allItems.length})`;
+      document.getElementById('count-may').innerText = `(${allItems.filter(p => p.folder === 'may').length})`;
+      document.getElementById('count-phieu_sua').innerText = `(${allItems.filter(p => p.folder === 'phieu_sua').length})`;
+      document.getElementById('count-hoa_don').innerText = `(${allItems.filter(p => p.folder === 'hoa_don').length})`;
 
       if (currentFolder === 'tat_ca') {
-        currentFolderPhotosCache = allPhotos;
+        currentFolderPhotosCache = allItems;
       } else {
-        currentFolderPhotosCache = allPhotos.filter(p => p.folder === currentFolder);
+        currentFolderPhotosCache = allItems.filter(p => p.folder === currentFolder);
       }
 
       grid.innerHTML = "";
@@ -657,27 +659,35 @@
       }
       emptyState.classList.add('hidden');
 
-      currentFolderPhotosCache.forEach(photo => {
+      currentFolderPhotosCache.forEach(item => {
         const card = document.createElement('div');
         card.className = "relative rounded-xl overflow-hidden bg-slate-900 border border-slate-800 shadow-lg cursor-pointer select-none active:scale-95 transition-transform";
 
         const imgContainer = document.createElement('div');
-        imgContainer.className = "relative aspect-square bg-slate-950";
+        imgContainer.className = "relative aspect-square bg-slate-950 flex items-center justify-center";
 
         const img = document.createElement('img');
-        img.src = photo.dataUrl;
+        img.src = item.dataUrl;
         img.className = "w-full h-full object-cover pointer-events-none";
 
-        if (photo.isUploading) {
+        if (item.isUploading) {
           const badge = document.createElement('div');
           badge.className = "absolute top-2 left-2 bg-pink-600/90 text-white text-[9px] px-2 py-0.5 rounded-md font-bold flex items-center gap-1 shadow-md animate-pulse z-10";
           badge.innerHTML = `<div class="w-2 h-2 border-2 border-white border-t-transparent rounded-full animate-spin"></div> Đang tải lên...`;
           imgContainer.appendChild(badge);
         }
 
+        // Nhãn phân biệt nếu là Phiếu Sửa Máy
+        if (item.folder === 'phieu_sua') {
+          const badge = document.createElement('div');
+          badge.className = "absolute bottom-2 left-2 bg-emerald-600/90 text-white text-[9px] px-2 py-0.5 rounded-md font-bold shadow-md z-10";
+          badge.innerText = "📄 Phiếu Sửa Máy";
+          imgContainer.appendChild(badge);
+        }
+
         const checkOverlay = document.createElement('div');
-        checkOverlay.className = `absolute top-2 right-2 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${selectedImageIds.has(photo.id) ? 'bg-pink-500 border-pink-500' : 'bg-black/40'}`;
-        if (selectedImageIds.has(photo.id)) checkOverlay.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-white"></i>`;
+        checkOverlay.className = `absolute top-2 right-2 w-5 h-5 rounded-full border-2 border-white flex items-center justify-center ${selectedImageIds.has(item.id) ? 'bg-pink-500 border-pink-500' : 'bg-black/40'}`;
+        if (selectedImageIds.has(item.id)) checkOverlay.innerHTML = `<i data-lucide="check" class="w-3.5 h-3.5 text-white"></i>`;
 
         imgContainer.appendChild(img);
         imgContainer.appendChild(checkOverlay);
@@ -691,7 +701,7 @@
           pressTimer = setTimeout(() => {
             isLongPress = true;
             if (navigator.vibrate) navigator.vibrate(40);
-            toggleBatchSelect(photo.id);
+            toggleBatchSelect(item.id);
           }, 500);
         };
 
@@ -709,8 +719,8 @@
 
         card.onclick = () => {
           if (isLongPress) { isLongPress = false; return; }
-          if (isBatchMode) { toggleBatchSelect(photo.id); }
-          else { openSingleImageModal(photo); }
+          if (isBatchMode) { toggleBatchSelect(item.id); }
+          else { openSingleImageModal(item); }
         };
 
         grid.appendChild(card);
@@ -826,10 +836,11 @@
       }
     }
 
-    function renderFormRows() {
+    function renderFormRows(existingRows = []) {
       const container = document.getElementById('formRowsContainer');
       container.innerHTML = "";
       for (let i = 1; i <= 10; i++) {
+        const rowData = existingRows[i - 1] || { ma: '', ten: '', sl: '', phong: '', hientrang: '', xacnhan: '' };
         container.innerHTML += `
           <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 space-y-2">
             <div class="flex justify-between items-center text-[11px] font-bold text-pink-400 border-b border-slate-800/80 pb-1">
@@ -837,18 +848,18 @@
             </div>
 
             <div class="grid grid-cols-2 gap-2 text-xs">
-              <input type="text" id="row_ma_${i}" placeholder="Mã Tài Sản (5 số)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
-              <input type="text" id="row_ten_${i}" placeholder="Tên Máy" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_ma_${i}" value="${rowData.ma || ''}" placeholder="Mã Tài Sản (5 số)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_ten_${i}" value="${rowData.ten || ''}" placeholder="Tên Máy" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
             </div>
 
             <div class="grid grid-cols-2 gap-2 text-xs">
-              <input type="text" id="row_sl_${i}" placeholder="SL (Tự động = 1)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
-              <input type="text" id="row_phong_${i}" placeholder="Phòng/Ban" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_sl_${i}" value="${rowData.sl || ''}" placeholder="SL (Tự động = 1)" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_phong_${i}" value="${rowData.phong || ''}" placeholder="Phòng/Ban" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1 outline-none">
             </div>
 
             <!-- Ô HIỆN TRẠNG & NÚT BẤM NHANH -->
             <div class="space-y-1">
-              <input type="text" id="row_trangthai_${i}" placeholder="Hiện Trạng (Ví dụ: Hư, Không chạy...)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_trangthai_${i}" value="${rowData.hientrang || ''}" placeholder="Hiện Trạng (Ví dụ: Hư, Không chạy...)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
               <div class="flex gap-1 overflow-x-auto pt-0.5 pb-1">
                 <button type="button" onclick="setQuickValue('row_trangthai_${i}', 'Hư')" class="chip-btn">Hư</button>
                 <button type="button" onclick="setQuickValue('row_trangthai_${i}', 'Không chạy')" class="chip-btn">Không chạy</button>
@@ -860,7 +871,7 @@
 
             <!-- Ô XÁC NHẬN BÊN SỬA & NÚT BẤM NHANH -->
             <div class="space-y-1">
-              <input type="text" id="row_xacnhan_${i}" placeholder="Xác nhận bên sửa chữa" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
+              <input type="text" id="row_xacnhan_${i}" value="${rowData.xacnhan || ''}" placeholder="Xác nhận bên sửa chữa" class="w-full bg-slate-900 border border-slate-700 text-slate-100 text-xs rounded-lg px-2 py-1 outline-none">
               <div class="flex gap-1 overflow-x-auto pt-0.5 pb-1">
                 <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Đã sửa xong')" class="chip-btn">Đã sửa xong</button>
                 <button type="button" onclick="setQuickValue('row_xacnhan_${i}', 'Hoạt động bình thường')" class="chip-btn">HĐ bình thường</button>
@@ -881,6 +892,41 @@
       document.getElementById('formDateStr').value = `${d}/${m}/${y}`;
       document.getElementById('formBenSuaChua').value = "Nguyễn Hữu Phúc";
       document.getElementById('formChucVuSuaChua').value = "NVSC";
+
+      // Kiểm tra xem trong ngày & chi nhánh này đã có phiếu nào chưa đầy 10 mục không
+      activeEditingSheet = null;
+      try {
+        const snapshot = await firestore.collection("repair_sheets")
+          .where("branch", "==", currentBranch)
+          .where("dateKey", "==", selectedDate)
+          .get();
+
+        let targetSheet = null;
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          if (data.rows && data.rows.length < 10) {
+            targetSheet = { id: doc.id, ...data };
+          }
+        });
+
+        if (targetSheet) {
+          activeEditingSheet = targetSheet;
+          document.getElementById('formNguoiDeXuat').value = targetSheet.nguoiDeXuat || '';
+          document.getElementById('formChucVuDeXuat').value = targetSheet.chucVuDeXuat || '';
+          document.getElementById('formBenSuaChua').value = targetSheet.benSuaChua || 'Nguyễn Hữu Phúc';
+          document.getElementById('formChucVuSuaChua').value = targetSheet.chucVuSuaChua || 'NVSC';
+          document.getElementById('formSlotStatus').innerText = `Tiếp tục điền vào phiếu cũ (${targetSheet.rows.length}/10 mục):`;
+          renderFormRows(targetSheet.rows);
+        } else {
+          document.getElementById('formNguoiDeXuat').value = '';
+          document.getElementById('formChucVuDeXuat').value = '';
+          document.getElementById('formSlotStatus').innerText = `Tạo phiếu mới (0/10 mục):`;
+          renderFormRows([]);
+        }
+      } catch (err) {
+        console.error("Lỗi kiểm tra phiếu:", err);
+        renderFormRows([]);
+      }
 
       document.getElementById('formModal').classList.remove('hidden');
     }
@@ -919,7 +965,6 @@
           return;
         }
 
-        // Sắp xếp ngày mới nhất lên trên
         records.sort((a, b) => {
            let timeA = a.createdAt ? a.createdAt.seconds : 0;
            let timeB = b.createdAt ? b.createdAt.seconds : 0;
@@ -971,7 +1016,6 @@
       document.getElementById('pdfBenSuaChua').innerText = benSuaChua;
       document.getElementById('pdfChucVuSuaChua').innerText = chucVuSuaChua;
 
-      // CHÈN TÊN XUỐNG DƯỚI CHỮ KÝ TRONG PDF
       document.getElementById('pdfSignNguoiDeXuat').innerText = nguoiDeXuat;
       document.getElementById('pdfSignBenSuaChua').innerText = benSuaChua;
 
@@ -980,40 +1024,21 @@
 
       const tbody = document.getElementById('pdfTableBody');
       tbody.innerHTML = "";
-      const repairsToSave = [];
+      const currentRows = [];
 
       for (let i = 1; i <= 10; i++) {
         const ma = document.getElementById(`row_ma_${i}`).value.trim();
         const ten = document.getElementById(`row_ten_${i}`).value.trim();
         const slInput = document.getElementById(`row_sl_${i}`).value.trim();
-        
         const sl = ma ? (slInput || "1") : "";
-        
         const phong = document.getElementById(`row_phong_${i}`).value.trim();
         const hientrang = document.getElementById(`row_trangthai_${i}`).value.trim();
         const xacnhan = document.getElementById(`row_xacnhan_${i}`).value.trim();
 
-        // CHUẨN BỊ DATA ĐỂ LƯU CLOUD (Chỉ lưu nếu có nhập mã hoặc tên)
         if (ma || ten) {
-          repairsToSave.push({
-            branch: branch,
-            dateStr: dateStr,
-            dateKey: selectedDate, // Dạng YYYY-MM-DD
-            nguoiDeXuat: nguoiDeXuat,
-            chucVuDeXuat: chucVuDeXuat,
-            benSuaChua: benSuaChua,
-            chucVuSuaChua: chucVuSuaChua,
-            ma: ma,
-            ten: ten,
-            sl: sl,
-            phong: phong,
-            hientrang: hientrang,
-            xacnhan: xacnhan,
-            createdAt: firebase.firestore.FieldValue.serverTimestamp()
-          });
+          currentRows.push({ ma, ten, sl, phong, hientrang, xacnhan });
         }
 
-        // VẼ 10 DÒNG RA PDF
         tbody.innerHTML += `
           <tr style="height: 28px; text-align: center;">
             <td style="border: 1px solid #000; padding: 2px 4px;">${i}</td>
@@ -1027,38 +1052,104 @@
         `;
       }
 
+      if (currentRows.length === 0) {
+        alert("Vui lòng nhập ít nhất 1 máy sửa!");
+        return;
+      }
+
       const element = document.getElementById('pdfRenderArea');
       const filenameStr = `Phieu_De_Xuat_Sua_Chua_${branch.replace(/\s+/g, '_')}_${d}-${m}-${y}.pdf`;
 
-      const opt = {
-        margin: 0,
-        filename: filenameStr,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        pagebreak: { mode: ['avoid-all'] }
-      };
-
       try {
-        // BƯỚC 1: LƯU DATA LÊN FIRESTORE NẾU CÓ DỮ LIỆU SỬA CHỮA
-        if (repairsToSave.length > 0) {
-          const batch = firestore.batch();
-          repairsToSave.forEach(data => {
-            const docRef = firestore.collection("repairs").doc();
-            batch.set(docRef, data);
+        // 1. Chụp ảnh khung PDF để lưu lên cloud vào thư mục "phieu_sua"
+        const canvas = await html2canvas(element, { scale: 1.5, useCORS: true });
+        const sheetImgDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+        // 2. Lưu hoặc Cập nhật vào Firestore (repair_sheets và repairs và photos)
+        let sheetId = activeEditingSheet ? activeEditingSheet.id : null;
+        let photoDocId = activeEditingSheet ? activeEditingSheet.photoId : null;
+
+        const batch = firestore.batch();
+
+        if (sheetId) {
+          // Cập nhật phiếu cũ
+          const sheetRef = firestore.collection("repair_sheets").doc(sheetId);
+          batch.update(sheetRef, {
+            rows: currentRows,
+            nguoiDeXuat, chucVuDeXuat, benSuaChua, chucVuSuaChua
           });
-          await batch.commit();
+
+          // Xóa các records cũ trong repairs của phiếu này để ghi lại mới
+          const oldRepairsSnap = await firestore.collection("repairs").where("sheetId", "==", sheetId).get();
+          oldRepairsSnap.forEach(doc => batch.delete(doc.ref));
+        } else {
+          // Tạo phiếu mới
+          const sheetRef = firestore.collection("repair_sheets").doc();
+          sheetId = sheetRef.id;
+          const photoRef = firestore.collection("photos").doc();
+          photoDocId = photoRef.id;
+
+          batch.set(sheetRef, {
+            branch,
+            dateKey: selectedDate,
+            dateStr,
+            nguoiDeXuat, chucVuDeXuat, benSuaChua, chucVuSuaChua,
+            rows: currentRows,
+            photoId: photoDocId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+
+          batch.set(photoRef, {
+            branch,
+            date: selectedDate,
+            folder: "phieu_sua",
+            capturedDate: dateStr,
+            dataUrl: sheetImgDataUrl,
+            sheetId: sheetId,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
         }
 
-        // BƯỚC 2: XUẤT FILE PDF
+        // Thêm lại các máy vào bảng repairs phục vụ Tra Cứu
+        currentRows.forEach(row => {
+          const repairRef = firestore.collection("repairs").doc();
+          batch.set(repairRef, {
+            sheetId: sheetId,
+            branch: branch,
+            dateStr: dateStr,
+            dateKey: selectedDate,
+            nguoiDeXuat: nguoiDeXuat,
+            ma: row.ma,
+            ten: row.ten,
+            sl: row.sl,
+            phong: row.phong,
+            hientrang: row.hientrang,
+            xacnhan: row.xacnhan,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        });
+
+        await batch.commit();
+
+        // 3. Xuất file PDF tải về máy
+        const opt = {
+          margin: 0,
+          filename: filenameStr,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
         await html2pdf().set(opt).from(element).save();
+
         closeFormModal();
+        renderCalendar();
+        listenToCloudPhotos();
       } catch (err) {
-        alert("Có lỗi xảy ra khi tạo phiếu hoặc lưu dữ liệu: " + err.message);
+        alert("Lỗi khi lưu phiếu: " + err.message);
       }
     }
 
-    // TOUCH & ZOOM CHO MODAL XEM ẢNH
+    // TOUCH & ZOOM CHO MODAL XEM ẢNH/PHIẾU
     function initTouchZoomPan() {
       const img = document.getElementById('modalImg');
       if (!img) return;
@@ -1136,8 +1227,8 @@
       updateImgTransform();
     }
 
-    function openSingleImageModal(photo) {
-      currentModalIndex = currentFolderPhotosCache.findIndex(p => p.id === photo.id);
+    function openSingleImageModal(item) {
+      currentModalIndex = currentFolderPhotosCache.findIndex(p => p.id === item.id);
       showModalImageAtIndex(currentModalIndex);
       document.getElementById('imageModal').classList.remove('hidden');
     }
@@ -1147,10 +1238,10 @@
       if (index < 0 || index >= currentFolderPhotosCache.length) return;
 
       currentModalIndex = index;
-      const photo = currentFolderPhotosCache[currentModalIndex];
-      activeModalImgId = photo.id;
+      const item = currentFolderPhotosCache[currentModalIndex];
+      activeModalImgId = item.id;
 
-      document.getElementById('modalImg').src = photo.dataUrl;
+      document.getElementById('modalImg').src = item.dataUrl;
       document.getElementById('modalImageCounter').innerText = `${currentModalIndex + 1}/${currentFolderPhotosCache.length}`;
       resetZoomPan();
     }
@@ -1183,10 +1274,25 @@
         renderPhotosGrid();
         return;
       }
-      if (!confirm("Xóa vĩnh viễn hình ảnh này trên Cloud?")) return;
+      if (!confirm("Xóa vĩnh viễn mục này trên Cloud? (Nếu là phiếu sửa máy, dữ liệu tra cứu lịch sử máy liên quan cũng sẽ bị xóa)")) return;
+
+      const photoDoc = await firestore.collection("photos").doc(activeModalImgId).get();
+      if (photoDoc.exists) {
+        const data = photoDoc.data();
+        if (data.sheetId) {
+          // Xóa phiếu sửa máy và các lịch sử repairs liên quan
+          await firestore.collection("repair_sheets").doc(data.sheetId).delete();
+          const repairsSnap = await firestore.collection("repairs").where("sheetId", "==", data.sheetId).get();
+          const batch = firestore.batch();
+          repairsSnap.forEach(doc => batch.delete(doc.ref));
+          await batch.commit();
+        }
+      }
+
       await firestore.collection("photos").doc(activeModalImgId).delete();
       closeModal();
       renderCalendar();
+      listenToCloudPhotos();
     }
 
     async function dataUrlToFile(dataUrl, filename) {
@@ -1197,15 +1303,15 @@
 
     async function shareSingleImage() {
       if (!activeModalImgId) return;
-      const photo = currentFolderPhotosCache.find(p => p.id === activeModalImgId);
-      if (!photo) return;
+      const item = currentFolderPhotosCache.find(p => p.id === activeModalImgId);
+      if (!item) return;
 
-      const filename = `ZemaR_${photo.branch}_${photo.date}.jpg`;
+      const filename = `ZemaR_${item.branch}_${item.date}.jpg`;
       try {
-        const file = await dataUrlToFile(photo.dataUrl, filename);
+        const file = await dataUrlToFile(item.dataUrl, filename);
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
           await navigator.share({
-            title: `Zema R - ${photo.branch}`,
+            title: `Zema R - ${item.branch}`,
             files: [file]
           });
         } else {
@@ -1252,13 +1358,13 @@
 
     async function batchShare() {
       if (selectedImageIds.size === 0) return;
-      const selectedPhotos = currentFolderPhotosCache.filter(p => selectedImageIds.has(p.id));
+      const selectedItems = currentFolderPhotosCache.filter(p => selectedImageIds.has(p.id));
 
       try {
         const files = [];
-        for (let i = 0; i < selectedPhotos.length; i++) {
-          const photo = selectedPhotos[i];
-          const file = await dataUrlToFile(photo.dataUrl, `ZemaR_${photo.branch}_${i+1}.jpg`);
+        for (let i = 0; i < selectedItems.length; i++) {
+          const item = selectedItems[i];
+          const file = await dataUrlToFile(item.dataUrl, `ZemaR_${item.branch}_${i+1}.jpg`);
           files.push(file);
         }
 
@@ -1278,16 +1384,28 @@
     }
 
     async function batchDelete() {
-      if (!confirm(`Xóa vĩnh viễn ${selectedImageIds.size} ảnh đã chọn trên Cloud?`)) return;
+      if (!confirm(`Xóa vĩnh viễn ${selectedImageIds.size} mục đã chọn trên Cloud?`)) return;
       for (let id of selectedImageIds) {
         if (id.startsWith("temp_")) {
           tempPhotosMap.delete(id);
         } else {
+          const photoDoc = await firestore.collection("photos").doc(id).get();
+          if (photoDoc.exists) {
+            const data = photoDoc.data();
+            if (data.sheetId) {
+              await firestore.collection("repair_sheets").doc(data.sheetId).delete();
+              const repairsSnap = await firestore.collection("repairs").where("sheetId", "==", data.sheetId).get();
+              const batch = firestore.batch();
+              repairsSnap.forEach(doc => batch.delete(doc.ref));
+              await batch.commit();
+            }
+          }
           await firestore.collection("photos").doc(id).delete();
         }
       }
       exitBatchMode();
       renderCalendar();
+      listenToCloudPhotos();
     }
   </script>
 </body>
