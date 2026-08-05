@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.2)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.3)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -279,10 +279,10 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v2.2</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v2.3</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
-  <!-- MODAL QUÉT MÃ QR -->
+  <!-- MODAL QUÉT MÃ QR (Đã chỉnh khung ngắm nhỏ lại) -->
   <div id="qrModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-[60] hidden flex flex-col p-4">
     <div class="flex justify-between items-center mb-4 pt-2">
       <h2 class="text-pink-500 font-black text-lg uppercase tracking-wide flex items-center gap-2">
@@ -294,8 +294,8 @@
       <div class="w-full max-w-sm rounded-2xl overflow-hidden border-2 border-pink-500 shadow-xl bg-black relative">
         <div id="qr-reader"></div>
       </div>
-      <p class="text-slate-400 text-xs mt-6 text-center bg-slate-800 px-4 py-2 rounded-lg border border-slate-700 shadow-inner">
-        Đưa camera về phía mã QR hoặc Barcode. App sẽ tự động cắt 5 số cuối làm Mã Tài Sản, phần còn lại làm Tên Máy.
+      <p class="text-emerald-400 font-bold text-xs mt-6 text-center bg-slate-800 px-4 py-3 rounded-lg border border-emerald-500/30 shadow-inner">
+        <i data-lucide="info" class="w-4 h-4 inline-block mb-0.5"></i> MẸO: Khung đã được thu nhỏ cho mã QR bé. Hãy để điện thoại cách xa mã khoảng <b>10-15cm</b> để camera kịp lấy nét (đừng dí sát quá sẽ bị mờ).
       </p>
     </div>
   </div>
@@ -941,7 +941,7 @@
       lucide.createIcons();
     }
 
-    // LOGIC CAMERA QUÉT MÃ QR
+    // LOGIC CAMERA QUÉT MÃ QR BẢN MỚI
     function startQRScanner(rowIndex) {
       currentScanningRow = rowIndex;
       document.getElementById('qrModal').classList.remove('hidden');
@@ -950,7 +950,6 @@
         html5QrCode = new Html5Qrcode("qr-reader");
       }
 
-      // HÀM XỬ LÝ KHI QUÉT THÀNH CÔNG VÀ CẮT CHUỖI
       const qrCodeSuccessCallback = (decodedText, decodedResult) => {
         if (navigator.vibrate) navigator.vibrate(100);
         
@@ -958,13 +957,12 @@
         let maTaiSan = text;
         let tenMay = "";
 
-        // Tách 5 ký tự cuối cho Mã, phần còn lại cho Tên
+        // Tự động cắt 5 ký tự cuối làm Mã Tài Sản
         if (text.length > 5) {
           maTaiSan = text.slice(-5);
           tenMay = text.slice(0, -5).trim();
         }
 
-        // Gán giá trị vào các ô tương ứng
         document.getElementById(`row_ma_${currentScanningRow}`).value = maTaiSan;
         if (tenMay) {
           document.getElementById(`row_ten_${currentScanningRow}`).value = tenMay;
@@ -973,7 +971,8 @@
         closeQRScanner();
       };
 
-      const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+      // Đã thu nhỏ khung qrbox còn 150px, tăng fps lên 15 để nhạy hơn
+      const config = { fps: 15, qrbox: { width: 150, height: 150 }, aspectRatio: 1.0 };
 
       html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback)
       .catch((err) => {
