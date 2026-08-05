@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.5)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.6)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -279,10 +279,10 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v2.5</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v2.6</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
-  <!-- MODAL QUÉT MÃ QR/DATA MATRIX (Đã bỏ khung ngắm, quét full viền) -->
+  <!-- MODAL QUÉT MÃ QR/DATA MATRIX (Đã mở zoom và ép phân giải cao) -->
   <div id="qrModal" class="fixed inset-0 bg-slate-900/95 backdrop-blur-sm z-[60] hidden flex flex-col p-4">
     <div class="flex justify-between items-center mb-4 pt-2">
       <h2 class="text-pink-500 font-black text-lg uppercase tracking-wide flex items-center gap-2">
@@ -295,7 +295,7 @@
         <div id="qr-reader"></div>
       </div>
       <p class="text-emerald-400 font-bold text-xs mt-6 text-center bg-slate-800 px-4 py-3 rounded-lg border border-emerald-500/30 shadow-inner">
-        <i data-lucide="scan-face" class="w-4 h-4 inline-block mb-0.5"></i> Camera đang quét <b>TOÀN MÀN HÌNH</b>. Cứ giơ tem lọt vào camera, cách 10-15cm để máy tự động lấy nét nhé!
+        <i data-lucide="scan-face" class="w-4 h-4 inline-block mb-0.5"></i> Trình duyệt sẽ tự động Zoom (nếu máy hỗ trợ). Vui lòng để cách mã <b>10-15cm</b> để camera lấy nét. Lưu ý: Cần mở trang web bằng link `https://` và cấp quyền cho camera.
       </p>
     </div>
   </div>
@@ -887,6 +887,7 @@
       }
     }
 
+    // TÍCH HỢP NÚT QUÉT QR VÀO Ô MÃ TÀI SẢN
     function renderFormRows(existingRows = []) {
       const container = document.getElementById('formRowsContainer');
       container.innerHTML = "";
@@ -941,7 +942,7 @@
     }
 
     // ==============================================
-    // LOGIC CAMERA BẢN MỚI NHẤT V2.5
+    // LOGIC CAMERA BẢN MỚI NHẤT V2.6
     // ==============================================
     function startQRScanner(rowIndex) {
       currentScanningRow = rowIndex;
@@ -952,7 +953,7 @@
         html5QrCode = new Html5Qrcode("qr-reader", { 
           formatsToSupport: [ 
             Html5QrcodeSupportedFormats.QR_CODE,
-            Html5QrcodeSupportedFormats.DATA_MATRIX, // Bí quyết đọc tem nhỏ của bác đây
+            Html5QrcodeSupportedFormats.DATA_MATRIX, // Bí quyết đọc tem nhỏ
             Html5QrcodeSupportedFormats.CODE_128,
             Html5QrcodeSupportedFormats.CODE_39
           ] 
@@ -980,19 +981,22 @@
         closeQRScanner();
       };
 
-      // KHÔNG DÙNG qrbox ĐỂ CAMERA QUÉT TOÀN MÀN HÌNH VÀ TỰ LẤY NÉT CHUẨN XÁC NHẤT
       const config = { fps: 15 };
 
-      // YÊU CẦU CAMERA CHỤP PHÂN GIẢI HD ĐỂ NHÌN RÕ MÃ MA TRẬN NHỎ
+      // YÊU CẦU CAMERA CHỤP PHÂN GIẢI CAO VÀ ÉP ZOOM KỸ THUẬT SỐ/QUANG HỌC
       const cameraConfig = { 
         facingMode: "environment",
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        width: { ideal: 1920 }, // Nâng lên Full HD để nét căng
+        height: { ideal: 1080 },
+        advanced: [
+          { zoom: 2.5 }, // Ép Zoom lên 2.5 lần
+          { focusMode: "continuous" } // Bắt buộc lấy nét liên tục
+        ]
       };
 
       html5QrCode.start(cameraConfig, config, qrCodeSuccessCallback)
       .catch((err) => {
-        alert("Lỗi truy cập Camera, vui lòng cấp quyền cho trình duyệt: " + err);
+        alert("Lỗi truy cập Camera. Chú ý: Bác phải mở web bằng link 'https://' mới được cấp quyền camera nhé! Lỗi chi tiết: " + err);
         closeQRScanner();
       });
     }
