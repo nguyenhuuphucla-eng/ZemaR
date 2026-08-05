@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.7)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v2.8)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -279,7 +279,7 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v2.7</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v2.8</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
   <!-- MODAL QUÉT MÃ QR/DATA MATRIX -->
@@ -295,7 +295,7 @@
         <div id="qr-reader"></div>
       </div>
       <p class="text-emerald-400 font-bold text-xs mt-6 text-center bg-slate-800 px-4 py-3 rounded-lg border border-emerald-500/30 shadow-inner">
-        <i data-lucide="scan-face" class="w-4 h-4 inline-block mb-0.5"></i> Vui lòng đưa camera cách tem khoảng <b>10cm</b> để lấy nét. iPhone sẽ tự động quét Data Matrix.
+        <i data-lucide="scan-face" class="w-4 h-4 inline-block mb-0.5"></i> Vui lòng đưa camera cách tem khoảng <b>10cm</b> để lấy nét. Trình duyệt sẽ tự động quét Data Matrix.
       </p>
     </div>
   </div>
@@ -941,7 +941,7 @@
     }
 
     // ==============================================
-    // LOGIC CAMERA BẢN MỚI NHẤT V2.7 - ĐÃ FIX LỖI 4 KEYS
+    // LOGIC CAMERA BẢN MỚI NHẤT V2.8 - MỞ CAMERA SAU
     // ==============================================
     function startQRScanner(rowIndex) {
       currentScanningRow = rowIndex;
@@ -978,17 +978,9 @@
         closeQRScanner();
       };
 
-      // ĐÂY LÀ ĐOẠN SỬA LỖI: Chỉ dùng ĐÚNG 1 tham số theo luật của thư viện
+      // ĐÂY LÀ ĐOẠN SỬA LỖI: Chỉ dùng ĐÚNG 1 tham số cốt lõi để gọi Camera Sau
       const cameraIdOrConfig = { facingMode: "environment" };
-
-      // Chuyển phần bắt ép độ phân giải cao vào bên trong config
-      const config = { 
-        fps: 15,
-        videoConstraints: {
-          width: { ideal: 1920 }, // Nâng phân giải để bắt Data Matrix
-          height: { ideal: 1080 }
-        }
-      };
+      const config = { fps: 15 }; // Tốc độ quét mượt mà, bỏ ép phân giải để iPhone tự xử
 
       html5QrCode.start(cameraIdOrConfig, config, qrCodeSuccessCallback)
       .catch((err) => {
