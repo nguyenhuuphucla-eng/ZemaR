@@ -830,6 +830,24 @@
       }
     }
 
+    // HÀM TỰ ĐỘNG XỬ LÝ QUÉT QR / PASTE CHUỖI ĐỂ TÁCH MÃ TÀI SẢN VÀ TÊN MÁY
+    function handleQRCodePaste(rawValue, index) {
+      if (!rawValue) return;
+      const cleaned = rawValue.trim();
+      
+      if (cleaned.length >= 5) {
+        // Lấy 5 ký tự cuối làm Mã Tài Sản
+        const maTaiSan = cleaned.slice(-5);
+        // Lấy phần đầu làm Tên Máy và dọn dẹp các ký tự gạch nối
+        const tenMay = cleaned.slice(0, -5).replace(/[_-_]/g, ' ').trim();
+
+        document.getElementById(`row_ma_${index}`).value = maTaiSan;
+        document.getElementById(`row_ten_${index}`).value = tenMay;
+      } else {
+        document.getElementById(`row_ma_${index}`).value = cleaned;
+      }
+    }
+
     function renderFormRows(existingRows = []) {
       const container = document.getElementById('formRowsContainer');
       container.innerHTML = "";
@@ -839,11 +857,16 @@
           <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 space-y-2">
             <div class="flex justify-between items-center text-[11px] font-bold text-pink-400 border-b border-slate-800/80 pb-1">
               <span>MÁY MỤC #${i}</span>
+              <span class="text-[10px] text-slate-400 font-normal italic">Quét QR hoặc dán mã bên dưới</span>
+            </div>
+
+            <!-- Ô NHẬP THÔNG MINH CHO PHÉP DÁN KẾT QUẢ QUÉT QR TỪ CAMERA IPHONE -->
+            <div class="space-y-1">
+              <input type="text" id="row_qr_scan_${i}" placeholder="Chạm giữ để Dán mã QR từ camera iPhone..." oninput="handleQRCodePaste(this.value, ${i})" class="w-full bg-slate-900 border border-dashed border-pink-500/50 text-pink-300 placeholder-pink-400/50 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-pink-500">
             </div>
 
             <div class="grid grid-cols-2 gap-2 text-xs">
-              <!-- ĐÃ XÓA HOÀN TOÀN NÚT QUÉT MÃ VÀ ĐỂ LẠI Ô NHẬP TAY GỌN GÀNG -->
-              <input type="text" id="row_ma_${i}" value="${rowData.ma || ''}" placeholder="Mã Tài Sản (Nhập tay)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none focus:border-pink-500">
+              <input type="text" id="row_ma_${i}" value="${rowData.ma || ''}" placeholder="Mã Tài Sản (5 số cuối)" class="w-full bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none focus:border-pink-500">
               <input type="text" id="row_ten_${i}" value="${rowData.ten || ''}" placeholder="Tên Máy" class="bg-slate-900 border border-slate-700 text-slate-100 rounded-lg px-2 py-1.5 outline-none focus:border-pink-500">
             </div>
 
