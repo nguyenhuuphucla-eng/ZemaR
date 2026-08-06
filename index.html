@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v3.3)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v3.4)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,8 +15,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
 
-  <!-- Thư viện Quét QR Trực Tiếp (Html5Qrcode) -->
-  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
+  <!-- Thư viện đọc mã QR từ ảnh chụp -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <!-- Thư viện Xuất PDF A4 Chuẩn & Chụp ảnh HTML -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -247,9 +247,12 @@
 
   </main>
 
+  <!-- INPUT ẨN ĐỂ QUÉT QR BẰNG CAMERA GỐC ĐIỆN THOẠI -->
+  <input type="file" id="qrCaptureInput" accept="image/*" capture="environment" class="hidden" onchange="handleQRPhotoCaptured(event)">
+
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v3.3</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v3.4</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
   <!-- MODAL TRA CỨU LỊCH SỬ MÁY -->
@@ -266,26 +269,6 @@
       </div>
 
       <div id="searchResults" class="flex-1 overflow-y-auto space-y-3 pb-6">
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL QUÉT QR TRỰC TIẾP BẰNG CAMERA -->
-  <div id="qrModal" class="fixed inset-0 bg-black/95 z-50 hidden flex flex-col justify-between p-4">
-    <div class="max-w-md mx-auto w-full h-full flex flex-col justify-between py-2">
-      <div class="flex justify-between items-center">
-        <h2 class="text-pink-500 font-black text-sm uppercase tracking-wide flex items-center gap-2">
-          <i data-lucide="qr-code" class="w-5 h-5"></i> Quét Mã QR Máy
-        </h2>
-        <button onclick="closeQRModal()" class="text-slate-300 p-2 bg-slate-800 rounded-full active:scale-95"><i data-lucide="x" class="w-5 h-5"></i></button>
-      </div>
-
-      <div class="relative w-full aspect-square bg-slate-950 rounded-2xl overflow-hidden border border-slate-800 flex items-center justify-center">
-        <div id="reader" class="w-full h-full"></div>
-      </div>
-
-      <div class="text-center text-xs text-slate-400 py-2">
-        Đưa camera hướng về phía mã QR trên thiết bị để tự động quét.
       </div>
     </div>
   </div>
@@ -501,8 +484,7 @@
     let initialDist = 0, initialScale = 1;
     let lastTapTime = 0;
 
-    let html5QrCode = null;
-    let activeTargetIndex = null;
+    let activeScanIndex = null;
 
     window.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
@@ -856,44 +838,39 @@
       }
     }
 
-    // TÍCH HỢP QUÉT QR TRỰC TIẾP BẰNG CAMERA
-    function openQRScanner(index) {
-      activeTargetIndex = index;
-      document.getElementById('qrModal').classList.remove('hidden');
-
-      if (!html5QrCode) {
-        html5QrCode = new Html5Qrcode("reader");
-      }
-
-      const qrConfig = { fps: 10, qrbox: { width: 220, height: 220 } };
-      html5QrCode.start(
-        { facingMode: "environment" },
-        qrConfig,
-        (decodedText) => {
-          // Khi quét thành công mã QR
-          processScannedData(decodedText, activeTargetIndex);
-          closeQRModal();
-        },
-        (errorMessage) => {
-          // Bỏ qua lỗi quét liên tục khi chưa bắt được mã
-        }
-      ).catch(err => {
-        alert("Không thể mở camera thiết bị: " + err);
-        closeQRModal();
-      });
+    // MỞ CAMERA GỐC IPHONE ĐỂ CHỤP VÀ ĐỌC MÃ QR LẬP TỨC
+    function triggerQRScan(index) {
+      activeScanIndex = index;
+      document.getElementById('qrCaptureInput').click();
     }
 
-    function closeQRModal() {
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().then(() => {
-          document.getElementById('qrModal').classList.add('hidden');
-        }).catch(err => {
-          console.error("Lỗi đóng camera:", err);
-          document.getElementById('qrModal').classList.add('hidden');
-        });
-      } else {
-        document.getElementById('qrModal').classList.add('hidden');
-      }
+    function handleQRPhotoCaptured(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0);
+          
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+          if (code) {
+            processScannedData(code.data, activeScanIndex);
+          } else {
+            alert("Không tìm thấy mã QR trong ảnh chụp. Vui lòng chụp lại rõ hơn!");
+          }
+          event.target.value = "";
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
     }
 
     function processScannedData(rawString, index) {
@@ -901,9 +878,7 @@
       const cleaned = rawString.trim();
 
       if (cleaned.length >= 5) {
-        // Lấy 5 ký tự cuối làm Mã Tài Sản
         const maTaiSan = cleaned.slice(-5);
-        // Lấy phần đầu làm Tên Máy và dọn dẹp ký tự gạch nối
         const tenMay = cleaned.slice(0, -5).replace(/[_-_]/g, ' ').trim();
 
         document.getElementById(`row_ma_${index}`).value = maTaiSan;
@@ -922,8 +897,8 @@
           <div class="bg-slate-950/80 p-2.5 rounded-xl border border-slate-800 space-y-2">
             <div class="flex justify-between items-center text-[11px] font-bold text-pink-400 border-b border-slate-800/80 pb-1">
               <span>MÁY MỤC #${i}</span>
-              <button type="button" onclick="openQRScanner(${i})" class="bg-pink-600 hover:bg-pink-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-md active:scale-95 transition-transform">
-                <i data-lucide="scan" class="w-3.5 h-3.5"></i> Quét QR Camera
+              <button type="button" onclick="triggerQRScan(${i})" class="bg-pink-600 hover:bg-pink-500 text-white text-[10px] font-bold px-2.5 py-1 rounded-lg flex items-center gap-1 shadow-md active:scale-95 transition-transform">
+                <i data-lucide="camera" class="w-3.5 h-3.5"></i> Chụp Quét QR
               </button>
             </div>
 
