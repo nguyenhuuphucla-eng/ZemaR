@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v3.8 OCR FIX)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v3.9 Hoàn Thiện)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -264,7 +264,7 @@
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v3.8 OCR FIX</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v3.9 Hoàn Thiện</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
   <!-- OCR Loading Overlay -->
@@ -382,8 +382,12 @@
     </div>
 
     <div class="flex justify-around items-center bg-slate-900/90 backdrop-blur-md rounded-2xl py-3 border border-slate-800 z-10">
-      <button onclick="shareSingleImage()" class="flex flex-col items-center text-pink-400 text-xs gap-1 font-semibold px-6 py-1"><i data-lucide="share-2" class="w-5 h-5 text-pink-400"></i> Chia sẻ</button>
-      <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1 font-semibold px-6 py-1"><i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa</button>
+      <button onclick="shareSingleImage()" class="flex flex-col items-center text-blue-400 text-xs gap-1 font-semibold px-4 py-1"><i data-lucide="share-2" class="w-5 h-5 text-blue-400"></i> Chia sẻ</button>
+      
+      <!-- NÚT SỬA PHIẾU MỚI THÊM VÀO -->
+      <button id="btnEditSheet" onclick="editSingleSheet()" class="hidden flex-col items-center text-emerald-400 text-xs gap-1 font-semibold px-4 py-1 active:scale-95 transition-transform"><i data-lucide="edit" class="w-5 h-5 text-emerald-400"></i> Sửa phiếu</button>
+      
+      <button onclick="deleteSingleImage()" class="flex flex-col items-center text-red-400 text-xs gap-1 font-semibold px-4 py-1"><i data-lucide="trash-2" class="w-5 h-5 text-red-500"></i> Xóa</button>
     </div>
   </div>
 
@@ -905,7 +909,6 @@
           const imageData = ctx.getImageData(0, 0, width, height);
           const data = imageData.data;
           
-          // Đã tinh chỉnh contrast xuống 1.3 để không bị đứt nét các chữ mỏng
           for (let i = 0; i < data.length; i += 4) {
             const avg = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
             const contrast = 1.3; 
@@ -926,10 +929,6 @@
             const result = await globalOcrWorker.recognize(canvas);
             const rawText = result.data.text || "";
             
-            // ==========================================
-            // THUẬT TOÁN ĐỌC MÃ & TÊN ĐÃ ĐƯỢC FIX LỖI NHIỄU
-            // ==========================================
-            
             const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
             
             let detectedMa = null;
@@ -941,17 +940,13 @@
               
               if (cleanLine.length >= 8 && /[A-Z]/.test(cleanLine) && /[0-9]/.test(cleanLine)) {
                 
-                // Lấy 5 số cuối làm mã
                 detectedMa = cleanLine.slice(-5);
                 
-                // Trích xuất Tên máy
                 if (i + 1 < lines.length) {
                   let rawTen = lines[i + 1];
                   
-                  // BỘ LỌC THÔNG MINH: Cắt bỏ các dấu chấm, phẩy, gạch ngang, nháy... dư thừa ở đầu và cuối do hạt bụi sinh ra
                   detectedTen = rawTen.replace(/^[\.,\-\'\"\|\*\:\;\_\+\=\!\?\s]+/, '').replace(/[\.,\-\'\"\|\*\:\;\_\+\=\!\?\s]+$/, '').trim();
                   
-                  // Trường hợp AI đọc nhầm vết dơ thành 1 chữ cái ngắn ngủi, nhảy xuống đọc dòng tiếp theo
                   if (detectedTen.length <= 2 && i + 2 < lines.length) {
                     let fallbackTen = lines[i + 2];
                     detectedTen = fallbackTen.replace(/^[\.,\-\'\"\|\*\:\;\_\+\=\!\?\s]+/, '').replace(/[\.,\-\'\"\|\*\:\;\_\+\=\!\?\s]+$/, '').trim();
@@ -1083,6 +1078,44 @@
 
     function closeFormModal() {
       document.getElementById('formModal').classList.add('hidden');
+    }
+
+    // ===============================================
+    // HÀM MỚI: CHỈNH SỬA LẠI PHIẾU ĐÃ LƯU
+    // ===============================================
+    async function editSingleSheet() {
+      if (!activeModalImgId) return;
+      const item = activeModalList[currentModalIndex];
+      if (!item || !item.sheetId) return;
+
+      document.getElementById('formBranch').value = item.branch || currentBranch;
+      document.getElementById('formDateStr').value = item.capturedDate || document.getElementById('formDateStr').value;
+
+      try {
+        const sheetDoc = await firestore.collection("repair_sheets").doc(item.sheetId).get();
+        if (sheetDoc.exists) {
+          const data = sheetDoc.data();
+          
+          // Nạp dữ liệu vào form để sửa
+          activeEditingSheet = { id: sheetDoc.id, ...data, photoId: activeModalImgId };
+
+          document.getElementById('formNguoiDeXuat').value = data.nguoiDeXuat || '';
+          document.getElementById('formChucVuDeXuat').value = data.chucVuDeXuat || '';
+          document.getElementById('formBenSuaChua').value = data.benSuaChua || 'Nguyễn Hữu Phúc';
+          document.getElementById('formChucVuSuaChua').value = data.chucVuSuaChua || 'NVSC';
+          document.getElementById('formSlotStatus').innerText = `Chỉnh sửa lại phiếu (${data.rows ? data.rows.length : 0}/10 mục):`;
+
+          renderFormRows(data.rows || []);
+
+          closeModal(); // Đóng Modal xem ảnh
+          document.getElementById('formModal').classList.remove('hidden'); // Mở Form chỉnh sửa
+        } else {
+          alert("Không tìm thấy dữ liệu gốc của phiếu này trên Cloud.");
+        }
+      } catch (err) {
+        console.error(err);
+        alert("Lỗi khi tải dữ liệu phiếu: " + err.message);
+      }
     }
 
     function openSearchHistoryModal() {
@@ -1218,15 +1251,26 @@
 
         const batch = firestore.batch();
 
+        // NẾU LÀ GHI ĐÈ / CHỈNH SỬA PHIẾU CŨ
         if (sheetId) {
           const sheetRef = firestore.collection("repair_sheets").doc(sheetId);
           batch.update(sheetRef, {
             rows: currentRows,
             nguoiDeXuat, chucVuDeXuat, benSuaChua, chucVuSuaChua
           });
+
+          // FIX LỖI: Ghi đè lại ảnh PDF mới vào thư viện ảnh để hiển thị cập nhật thay vì kẹt ảnh cũ
+          if (photoDocId) {
+            const photoRef = firestore.collection("photos").doc(photoDocId);
+            batch.update(photoRef, { dataUrl: sheetImgDataUrl });
+          }
+
+          // Xóa các tra cứu lịch sử cũ của phiếu này để tạo lại dữ liệu mới nhất
           const oldRepairsSnap = await firestore.collection("repairs").where("sheetId", "==", sheetId).get();
           oldRepairsSnap.forEach(doc => batch.delete(doc.ref));
-        } else {
+        } 
+        // NẾU TẠO PHIẾU MỚI HOÀN TOÀN
+        else {
           const sheetRef = firestore.collection("repair_sheets").doc();
           sheetId = sheetRef.id;
           const photoRef = firestore.collection("photos").doc();
@@ -1246,6 +1290,7 @@
           });
         }
 
+        // Tạo lại dữ liệu tra cứu lịch sử máy
         currentRows.forEach(row => {
           const repairRef = firestore.collection("repairs").doc();
           batch.set(repairRef, {
@@ -1368,6 +1413,17 @@
 
       document.getElementById('modalImg').src = item.dataUrl;
       document.getElementById('modalImageCounter').innerText = `${currentModalIndex + 1}/${activeModalList.length}`;
+      
+      // LOGIC HIỂN THỊ NÚT SỬA PHIẾU
+      const btnEdit = document.getElementById('btnEditSheet');
+      if (item.folder === 'phieu_sua' && item.sheetId) {
+        btnEdit.classList.remove('hidden');
+        btnEdit.classList.add('flex');
+      } else {
+        btnEdit.classList.add('hidden');
+        btnEdit.classList.remove('flex');
+      }
+
       resetZoomPan();
     }
 
