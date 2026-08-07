@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v3.5 OCR)</title>
+  <title>Zema R - Quản Lý Hình Ảnh & Tạo Phiếu PDF (v3.6 OCR PRO)</title>
 
   <!-- PWA iOS Support -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -262,19 +262,19 @@
 
   </main>
 
-  <!-- INPUT ẨN ĐỂ QUÉT QR BẰNG CAMERA GỐC ĐIỆN THOẠI -->
+  <!-- INPUT ẨN ĐỂ QUÉT CHỮ/SỐ TỪ MÃ BẰNG CAMERA GỐC ĐIỆN THOẠI -->
   <input type="file" id="qrCaptureInput" accept="image/*" capture="environment" class="hidden" onchange="handleQRPhotoCaptured(event)">
 
   <!-- FOOTER THÔNG TIN PHIÊN BẢN & BẢN QUYỀN -->
   <footer class="mt-auto pt-4 pb-2 text-center text-[11px] text-slate-500 font-medium tracking-wide">
-    Zema R <span class="text-pink-500 font-bold">v3.5 OCR</span> | © Copyright Nguyễn Hữu Phúc 0908893082
+    Zema R <span class="text-pink-500 font-bold">v3.6 OCR PRO</span> | © Copyright Nguyễn Hữu Phúc 0908893082
   </footer>
 
   <!-- OCR Loading Overlay -->
   <div id="ocrLoading">
     <div class="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-    <div class="text-pink-400 font-bold text-sm tracking-wide">Đang phân tích số...</div>
-    <div class="text-slate-400 text-xs mt-2 text-center max-w-[200px]">Xin vui lòng chờ giây lát, AI đang đọc hình ảnh.</div>
+    <div class="text-pink-400 font-bold text-sm tracking-wide">Đang phân tích dãy số...</div>
+    <div class="text-slate-400 text-xs mt-2 text-center max-w-[200px]">AI đang nhận diện hình ảnh, xin vui lòng chờ giây lát.</div>
   </div>
 
   <!-- MODAL TRA CỨU LỊCH SỬ MÁY -->
@@ -507,6 +507,9 @@
     let lastTapTime = 0;
 
     let activeScanIndex = null;
+    
+    // BIẾN TOÀN CỤC CHO OCR ĐỂ CHẠY MƯỢT NHIỀU LẦN
+    let globalOcrWorker = null;
 
     window.addEventListener('DOMContentLoaded', async () => {
       lucide.createIcons();
@@ -514,7 +517,22 @@
       await renderCalendar();
       listenToCloudPhotos();
       initTouchZoomPan();
+      
+      // Tải bộ não AI chạy ngầm ngay khi vào Web
+      initGlobalOCRWorker();
     });
+    
+    async function initGlobalOCRWorker() {
+      try {
+        globalOcrWorker = await Tesseract.createWorker('eng');
+        await globalOcrWorker.setParameters({
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+        });
+        console.log("Global OCR Worker Loaded Successfully");
+      } catch (err) {
+        console.error("Lỗi khi tải bộ dữ liệu AI:", err);
+      }
+    }
 
     function initBranches() {
       let savedBranches = JSON.parse(localStorage.getItem('zema_branches')) || DEFAULT_BRANCHES;
@@ -866,7 +884,7 @@
       document.getElementById('qrCaptureInput').click();
     }
 
-    // HÀM MỚI KẾT HỢP QR VÀ OCR BẰNG TESSERACT.JS
+    // HÀM MỚI KẾT HỢP XỬ LÝ ẢNH TRẮNG ĐEN TĂNG ĐỘ TƯƠNG PHẢN & GLOBAL WORKER
     async function handleQRPhotoCaptured(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -892,35 +910,66 @@
           canvas.height = height;
           ctx.imageSmoothingEnabled = false;
           ctx.drawImage(img, 0, 0, width, height);
+          
+          // ==========================================
+          // TIỀN XỬ LÝ ẢNH: TRẮNG ĐEN & TĂNG TƯƠNG PHẢN
+          // Giúp khử bóng râm, đọc chính xác chữ đen trên nền trắng
+          // ==========================================
+          const imageData = ctx.getImageData(0, 0, width, height);
+          const data = imageData.data;
+          for (let i = 0; i < data.length; i += 4) {
+            // Tính trung bình màu
+            const avg = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+            // Tăng độ tương phản (contrast)
+            const contrast = 1.5; 
+            let val = (avg - 128) * contrast + 128;
+            val = Math.max(0, Math.min(255, val));
+            
+            data[i] = val;     // R
+            data[i+1] = val;   // G
+            data[i+2] = val;   // B
+          }
+          ctx.putImageData(imageData, 0, 0);
 
-          // Hiển thị màn hình Loading trong quá trình OCR quét
+          // Bật Loading
           document.getElementById('ocrLoading').style.display = "flex";
 
           try {
-            // Thử dùng Tesseract để đọc chữ & số
-            const result = await Tesseract.recognize(canvas, 'eng', {
-              tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-            });
+            // Load lại worker nếu chưa load kịp lúc mở app
+            if (!globalOcrWorker) await initGlobalOCRWorker();
 
+            // Tiến hành nhận diện chữ bằng Worker toàn cục (Rất nhanh, không tràn RAM)
+            const result = await globalOcrWorker.recognize(canvas);
             const rawText = result.data.text || "";
             
-            // Tìm chuỗi chứa chữ/số viết liền nhau, độ dài >= 5 ký tự 
-            // Vd: DMND02000021565
-            const matches = rawText.match(/[A-Z0-9]{5,}/g);
+            // ==========================================
+            // THUẬT TOÁN BẮT CHỮ THÔNG MINH
+            // ==========================================
+            const lines = rawText.split('\n');
+            let detectedCode = null;
 
-            if (matches && matches.length > 0) {
-              // Lấy mã đầu tiên phù hợp
-              const detectedCode = matches[0];
+            for (let line of lines) {
+              // 1. Xóa toàn bộ khoảng trắng dư thừa do lỗi nhận diện
+              let cleanLine = line.replace(/\s+/g, '').replace(/[^A-Z0-9]/g, '');
+              
+              // 2. Mã số hợp lệ phải có cả chữ + số, độ dài >= 8 (Ví dụ DMND02000021565)
+              if (cleanLine.length >= 8 && /[A-Z]/.test(cleanLine) && /[0-9]/.test(cleanLine)) {
+                detectedCode = cleanLine;
+                break; // Lấy dòng hợp lệ đầu tiên
+              }
+            }
+
+            if (detectedCode) {
               processScannedData(detectedCode, activeScanIndex);
             } else {
-              alert("Không tìm thấy dãy số hợp lệ trong ảnh. Vui lòng chụp rõ lại dòng mã số!");
+              alert("Không nhận diện được dãy chữ số. Vui lòng chụp thẳng góc, giữ nguyên mã vùng trong khung hình!");
             }
           } catch (err) {
             console.error("Lỗi xử lý hình ảnh:", err);
-            alert("Lỗi phần mềm đọc hình. Vui lòng thử lại!");
+            alert("Lỗi phần mềm đọc hình. Vui lòng tải lại trang và thử lại!");
           } finally {
             document.getElementById('ocrLoading').style.display = "none";
-            document.getElementById('qrCaptureInput').value = ""; // Reset file input
+            document.getElementById('qrCaptureInput').value = ""; // Reset file input cho lần chụp sau
           }
         };
         img.src = e.target.result;
@@ -933,10 +982,11 @@
       if (!rawString) return;
       const cleaned = rawString.trim();
 
-      // Nếu chuỗi dài >= 5: Lấy 5 ký tự cuối làm "Mã", phần còn lại làm "Tên"
+      // MÃ TÀI SẢN: Luôn cắt đúng 5 ký tự số đuôi (vd: 21565)
+      // TÊN MÁY: Phần chữ còn lại phía trước
       if (cleaned.length >= 5) {
         const maTaiSan = cleaned.slice(-5);
-        const tenMay = cleaned.slice(0, -5).replace(/[_-_]/g, ' ').trim();
+        const tenMay = cleaned.slice(0, -5).trim();
 
         document.getElementById(`row_ma_${index}`).value = maTaiSan;
         document.getElementById(`row_ten_${index}`).value = tenMay;
